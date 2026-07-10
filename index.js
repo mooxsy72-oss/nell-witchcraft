@@ -968,8 +968,8 @@ function buildPanelSkeleton() {
             <button id="nw-close" aria-label="Закрыть">✕</button>
             <div id="nw-drag-handle" title="Перетащить книгу">⠿</div>
             <div id="nw-mobile-tabs">
-                <button class="nw-mtab nw-mtab-active" data-page="left">📖 Заклинания</button>
-                <button class="nw-mtab" data-page="right">✨ Сила</button>
+                <button class="nw-mtab nw-mtab-active" data-page="right">✨ Сила</button>
+                <button class="nw-mtab" data-page="left">📖 Заклинания</button>
             </div>
 
 <div class="nw-page nw-page-left">
@@ -1138,7 +1138,7 @@ if (sendBut) {
     // Перетаскивание — только за ручку в правом нижнем углу
     const bookEl = document.getElementById('nw-book');
     makeDraggable(bookEl, document.getElementById('nw-drag-handle'));
-    if (bookEl) bookEl.dataset.mobilePage = 'left';
+    if (bookEl) bookEl.dataset.mobilePage = 'right';
 }
 
 
