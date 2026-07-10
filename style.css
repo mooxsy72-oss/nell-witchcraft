@@ -236,6 +236,21 @@
     from { opacity: 0; transform: translate(-50%,-47%) scale(0.93); }
     to   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
 }
+/* ─── ЗАТЕМНЕНИЕ ФОНА ЗА КНИГОЙ (мобильный) ────────────────── */
+#nw-book-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9080;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    animation: nw-overlay-in 0.25s ease forwards;
+}
+#nw-book-overlay.nw-hidden { display: none; }
+@keyframes nw-overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
 
 /* ─── CLOSE BUTTON ──────────────────────────────────────────── */
 #nw-close {
@@ -969,8 +984,9 @@
 
 @media (max-width: 760px) {
     #nw-book {
-        width: 94vw;
-        height: 82vh;
+        width: 92vw;
+        height: 80vh;
+        max-height: 80vh;
         top: 50%;
         left: 50%;
         bottom: auto;
@@ -981,6 +997,7 @@
         overflow: hidden;
         z-index: 99999;
     }
+
 
     .nw-page-left, .nw-page-right {
         flex: none;
