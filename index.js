@@ -1961,11 +1961,12 @@ function setSidebarCollapsed(collapsed) {
 
 function buildSidebar() {
     if (document.getElementById('nw-sidebar')) return;
+    const root = document.getElementById('nw-root') || document.body;
     const bar = document.createElement('div');
     bar.id = 'nw-sidebar';
     bar.dataset.side = getSidebarSide();
     if (isSidebarCollapsed()) bar.classList.add('nw-sb-collapsed');
-    document.body.appendChild(bar);
+    root.appendChild(bar);
 }
 
 
