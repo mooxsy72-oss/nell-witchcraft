@@ -2143,15 +2143,15 @@
 /* ═══ БОКОВАЯ ПАНЕЛЬ БЫСТРОГО КАСТА ═════════════════════════ */
 #nw-sidebar {
     position: fixed;
-    top: 50vh;
+    top: 50%;
     transform: translateY(-50%);
     z-index: 8000;
     display: flex;
     align-items: center;
     font-family: var(--mainFontFamily, 'Georgia', serif);
     transition: transform 0.35s cubic-bezier(.22,.9,.44,1);
-    will-change: transform;
 }
+
 
 #nw-sidebar.nw-hidden { display: none; }
 
@@ -2628,5 +2628,44 @@
         opacity: 1;
         background: var(--nw-accent);
         box-shadow: 0 0 8px var(--nw-glow);
+    }
+}
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── МОБИЛЬНЫЙ ФИКС ПОЗИЦИИ БОКОВОЙ ПАНЕЛИ ────────────────── */
+/* ═══════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+    /* root на весь экран, но клики сквозь него проходят к чату */
+    #nw-root {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 8000;
+    }
+
+    /* а сама панель и книга — кликабельны и рисуются нормально */
+    #nw-root #nw-sidebar,
+    #nw-root #nw-book,
+    #nw-root #nw-notify-container {
+        pointer-events: auto;
+    }
+
+    /* панель теперь корректно встаёт по центру сбоку */
+    #nw-root #nw-sidebar {
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    #nw-root #nw-sidebar[data-side="right"] {
+        right: 0;
+    }
+    #nw-root #nw-sidebar[data-side="left"] {
+        left: 0;
+    }
+
+    /* учитываем свёрнутое состояние (закладка торчит) */
+    #nw-root #nw-sidebar[data-side="right"].nw-sb-collapsed {
+        transform: translateY(-50%) translateX(calc(100% - 22px));
+    }
+    #nw-root #nw-sidebar[data-side="left"].nw-sb-collapsed {
+        transform: translateY(-50%) translateX(calc(-100% + 22px));
     }
 }
