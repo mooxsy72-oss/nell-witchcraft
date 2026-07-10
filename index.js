@@ -1719,7 +1719,7 @@ function renderPathTab(container) {
             <div class="nw-path-moon">🌙</div>
             <div class="nw-path-hero-title">Путь Ведьмы</div>
             <div class="nw-path-hero-sub">За пределами десятого круга магия больше не даёт готовых заклинаний —
-            только силу. Дальше ${name1 || 'ведьма'} творит свои.</div>
+            только силу. Дальше ${name1 || 'ведьма'} путь выбирать тебе самому.</div>
 
             <div class="nw-path-stats">
                 <div class="nw-path-stat">
