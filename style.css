@@ -598,13 +598,14 @@
     overflow-y: auto;
     flex: 1;
     min-height: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+    gap: 10px 8px;
+    align-content: start;
     padding: 4px 6px 4px 2px;
     scrollbar-width: thin;
     scrollbar-color: #3a2060 transparent;
 }
-
 
 .nw-spell {
     background: var(--nw-card-bg);
@@ -967,11 +968,27 @@
 }
 
 @media (max-width: 760px) {
-    .nw-page-left, .nw-page-right {
-        flex: 0 0 100%;
-        overflow-y: auto;
-        height: 100%;
+    #nw-book {
+        width: 94vw;
+        height: 82vh;
+        top: 50%;
+        left: 50%;
+        bottom: auto;
+        right: auto;
+        transform: translate(-50%, -50%);
+        flex-direction: column;
+        border-radius: 16px;
+        overflow: hidden;
+        z-index: 99999;
     }
+
+    .nw-page-left, .nw-page-right {
+        flex: none;
+        overflow: visible;
+        height: auto;
+    }
+    .nw-page-left { padding: 40px 12px 10px; }
+    .nw-page-right { padding: 20px 12px 16px; }
 
     /* рейка уровней — горизонтальная лента */
     .nw-left-body { flex-direction: column; gap: 8px; }
@@ -2300,11 +2317,7 @@
 
 /* ─── ТЕЛЕФОН: тоже сбоку, тоже выдвижная закладка ─────────── */
 @media (max-width: 760px) {
-    #nw-sidebar {
-        top: 50%;
-        transform: translateY(-50%);
-    }
-
+    #nw-sidebar { top: 44%; }
 
     .nw-sb-inner {
         gap: 9px;
@@ -2320,417 +2333,5 @@
     }
     #nw-sidebar[data-side="left"].nw-sb-collapsed {
         transform: translateY(-50%) translateX(calc(-100% + 22px));
-    }
-}
-/* ═══ ВКЛАДКА «ПУТЬ ВЕДЬМЫ» ═════════════════════════════════ */
-.nw-path-hero {
-    position: relative;
-    text-align: center;
-    padding: 20px 18px 18px;
-    border-radius: 12px;
-    background:
-        radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--nw-accent) 18%, transparent), transparent 60%),
-        var(--nw-detail-bg);
-    border: 1px solid var(--nw-accent2);
-    box-shadow: 0 0 24px var(--nw-glow), inset 0 0 30px rgba(0,0,0,0.4);
-    overflow: hidden;
-}
-.nw-path-hero::before {
-    content: '✦ ✧ ✦ ✧ ✦';
-    position: absolute;
-    top: 6px; left: 0; right: 0;
-    text-align: center;
-    font-size: 0.6rem;
-    letter-spacing: 0.5em;
-    color: color-mix(in srgb, var(--nw-accent) 40%, transparent);
-    pointer-events: none;
-}
-.nw-path-moon {
-    font-size: 2.2rem;
-    line-height: 1;
-    filter: drop-shadow(0 0 12px var(--nw-glow));
-    animation: nw-gem-glow 4s ease-in-out infinite;
-}
-.nw-path-hero-title {
-    font-size: 1.15rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--nw-accent);
-    text-shadow: 0 0 14px var(--nw-glow);
-    margin-top: 6px;
-}
-.nw-path-hero-sub {
-    font-size: 0.72rem;
-    color: var(--nw-text-dim);
-    line-height: 1.5;
-    margin: 8px auto 0;
-    max-width: 340px;
-}
-
-.nw-path-stats {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-top: 16px;
-}
-.nw-path-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 8px 4px;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--nw-bg) 55%, transparent);
-    border: 1px solid var(--nw-border);
-}
-.nw-path-stat-num {
-    font-size: 1.05rem;
-    font-weight: bold;
-    color: var(--nw-accent);
-    text-shadow: 0 0 8px var(--nw-glow);
-}
-.nw-path-stat-cap {
-    font-size: 0.58rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--nw-text-dim);
-    text-align: center;
-    line-height: 1.2;
-}
-
-.nw-path-progress-wrap { margin-top: 16px; }
-.nw-path-progress-top {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.66rem;
-    color: var(--nw-text-dim);
-    margin-bottom: 5px;
-}
-
-.nw-path-timeline-title {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--nw-accent);
-    text-align: center;
-    margin: 16px 0 10px;
-    text-shadow: 0 0 8px var(--nw-glow);
-}
-.nw-path-timeline {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-left: 6px;
-}
-/* вертикальная линия пути */
-.nw-path-timeline::before {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 8px;
-    bottom: 8px;
-    width: 2px;
-    background: linear-gradient(to bottom,
-        transparent, color-mix(in srgb, var(--nw-accent) 60%, transparent), transparent);
-}
-
-.nw-path-row {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    z-index: 1;
-}
-.nw-path-node {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: var(--nw-bg2);
-    border: 1px solid var(--nw-accent);
-    font-size: 0.7rem;
-    color: var(--nw-accent);
-    box-shadow: 0 0 8px var(--nw-glow);
-    margin-top: 2px;
-}
-.nw-path-next .nw-path-node {
-    border-color: #c8a030;
-    color: #f0c060;
-    box-shadow: 0 0 8px rgba(200,160,48,0.35);
-    animation: nw-rune-pulse 2.5s ease-in-out infinite;
-}
-.nw-path-body {
-    flex: 1;
-    background: var(--nw-card-bg);
-    border: 1px solid var(--nw-border);
-    border-radius: 8px;
-    padding: 8px 12px;
-}
-.nw-path-next .nw-path-body {
-    border-color: #c8a030;
-    box-shadow: 0 0 10px rgba(200,160,48,0.15);
-}
-.nw-path-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-.nw-path-head b { color: var(--nw-accent); font-size: 0.84rem; }
-.nw-path-next .nw-path-head b { color: #f0c060; }
-.nw-path-xp {
-    font-size: 0.64rem;
-    color: var(--nw-text-dim);
-}
-.nw-path-note {
-    font-size: 0.68rem;
-    color: var(--nw-text-dim);
-    margin-top: 3px;
-    line-height: 1.4;
-}
-.nw-path-note b { color: var(--nw-accent); }
-
-/* цвет для уровней 11+ в левой рейке */
-.nw-lvl-btn-beyond span:first-child { color: color-mix(in srgb, var(--nw-accent) 90%, #fff); }
-.nw-lvl-btn-beyond.nw-lvl-btn-active span:first-child { color: #fff; }
-
-@media (max-width: 760px) {
-    .nw-path-stats { grid-template-columns: repeat(2, 1fr); }
-    .nw-path-hero-title { font-size: 1rem; }
-}
-/* ═══════════════════════════════════════════════════════════ */
-/* ─── МОБИЛЬНАЯ КНИГА: ОДНА СТРАНИЦА + СВАЙП + ТОЧКИ ───────── */
-/* ═══════════════════════════════════════════════════════════ */
-
-/* Точки-индикатор на ПК скрыты */
-#nw-mobile-dots { display: none; }
-
-@media (max-width: 760px) {
-
-    /* ── Книга: компактная, по центру экрана ── */
-    #nw-book {
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        right: auto !important;
-        bottom: auto !important;
-        transform: translate(-50%, -50%) !important;
-        width: 92vw !important;
-        max-width: 92vw !important;
-        height: 72vh !important;
-        max-height: 72vh !important;
-        flex-direction: row !important;
-        border-radius: 14px !important;
-        overflow: hidden !important;
-        border: 1px solid var(--nw-border) !important;
-        z-index: 100000 !important;
-    }
-    /* Отменяем сохранённую позицию перетаскивания с ПК */
-    #nw-book.nw-book-moved {
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-    }
-
-
-    /* ── Страницы: каждая занимает ровно ширину экрана ── */
-    #nw-book .nw-page-left,
-    #nw-book .nw-page-right {
-        flex: 0 0 100% !important;
-        width: 100% !important;
-        min-width: 100% !important;
-        max-width: 100% !important;
-        height: 100% !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        border-radius: 14px !important;
-        padding: 52px 12px 56px !important;
-        transition: transform 0.38s cubic-bezier(.4, 0, .2, 1);
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* ── Логика сдвига: показываем нужную страницу ── */
-    /* Страница "Сила" (right) активна: обе страницы на месте */
-    #nw-book[data-mobile-page="right"] .nw-page-right { transform: translateX(0); }
-    #nw-book[data-mobile-page="right"] .nw-page-left  { transform: translateX(0); }
-
-    /* Страница "Заклинания" (left) активна: сдвигаем обе влево на 1 экран */
-    #nw-book[data-mobile-page="left"] .nw-page-right { transform: translateX(-100%); }
-    #nw-book[data-mobile-page="left"] .nw-page-left  { transform: translateX(-100%); }
-
-    /* Порядок в разметке: сначала left, потом right.
-       Меняем порядок отображения, чтобы right (Сила) была первой */
-    #nw-book .nw-page-left  { order: 2; }
-    #nw-book .nw-page-right { order: 1; }
-
-    /* Корешок между страницами прячем */
-    #nw-book .nw-spine { display: none !important; }
-    #nw-book .nw-deco-crystal { display: none !important; }
-
-    /* ── Крестик закрытия: крупный кружок в углу ── */
-    #nw-close {
-        position: fixed !important;
-        top: 10px !important;
-        right: 12px !important;
-        z-index: 100002 !important;
-        font-size: 1.4rem !important;
-        color: var(--nw-text) !important;
-        background: var(--nw-bg2) !important;
-        border: 1px solid var(--nw-border) !important;
-        border-radius: 50% !important;
-        width: 38px;
-        height: 38px;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        padding: 0 !important;
-        line-height: 1;
-        box-shadow: 0 0 10px var(--nw-glow);
-    }
-
-    /* Кнопку питания оставляем рядом, ручку перетаскивания прячем */
-    #nw-book .nw-power-btn {
-        position: fixed !important;
-        top: 10px !important;
-        right: 58px !important;
-        z-index: 100002 !important;
-    }
-    #nw-drag-handle { display: none !important; }
-
-    /* ── Точки-индикатор внизу книги ── */
-    #nw-mobile-dots {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-        position: fixed;
-        left: 50%;
-        bottom: 10px;
-        transform: translateX(-50%);
-        z-index: 100002;
-        padding: 8px 16px;
-        background: color-mix(in srgb, var(--nw-bg2) 85%, transparent);
-        border: 1px solid var(--nw-border);
-        border-radius: 20px;
-        box-shadow: 0 0 12px var(--nw-glow);
-        backdrop-filter: blur(6px);
-    }
-    .nw-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: var(--nw-text-dim);
-        opacity: 0.5;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .nw-dot-active {
-        width: 24px;
-        border-radius: 5px;
-        opacity: 1;
-        background: var(--nw-accent);
-        box-shadow: 0 0 8px var(--nw-glow);
-    }
-}
-
-/* ─── СЕТКА ЗАКЛИНАНИЙ + ЛИСТАЛКА ──────────────────────────── */
-/* На ПК сетка внутри контейнера ведёт себя как раньше */
-.nw-spells-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-    gap: 10px 8px;
-    align-content: start;
-    width: 100%;
-}
-.nw-spell-pager { display: none; }
-
-@media (max-width: 760px) {
-    /* Контейнер списка: сетка + стрелки в столбик */
-    #nw-book .nw-spells {
-        display: flex !important;
-        flex-direction: column;
-        overflow: visible !important;
-        grid-template-columns: none !important;
-    }
-    .nw-spells-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 12px 8px;
-    }
-
-    /* Панель со стрелками листания */
-    .nw-spell-pager {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        margin-top: 14px;
-        padding-top: 10px;
-        border-top: 1px solid var(--nw-border);
-    }
-    .nw-pager-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: var(--nw-tab-bg);
-        border: 1px solid var(--nw-border);
-        color: var(--nw-accent);
-        font-size: 1.4rem;
-        line-height: 1;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
-    }
-    .nw-pager-btn:hover:not(:disabled) {
-        background: var(--nw-tab-active);
-        box-shadow: 0 0 10px var(--nw-glow);
-    }
-    .nw-pager-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .nw-pager-info {
-        font-size: 0.85rem;
-        color: var(--nw-text);
-        letter-spacing: 0.05em;
-        min-width: 50px;
-        text-align: center;
-    }
-}
-/* На телефоне книга/панель живут в body — дублируем переменные,
-   чтобы цвета не потерялись при выносе из #nw-root */
-@media (max-width: 760px) {
-    body {
-        --nw-mana:       #5b2d8a;
-        --nw-mana-top:   #b060e0;
-        --nw-blood:      #c0392b;
-        --nw-glow-red:   rgba(192, 57, 43, 0.35);
-        --nw-flask-glow: rgba(155, 89, 182, 0.45);
-        --nw-bg:         #100a18;
-        --nw-bg2:        #1a1025;
-        --nw-bg3:        #0d0815;
-        --nw-border:     #3a2060;
-        --nw-accent:     #9b59b6;
-        --nw-accent2:    #6c3483;
-        --nw-text:       #c8b8e0;
-        --nw-text-dim:   #6a5080;
-        --nw-glow:       rgba(155, 89, 182, 0.45);
-        --nw-card-bg:    linear-gradient(160deg, #1a0f28 0%, #140b1f 100%);
-        --nw-card-hover: linear-gradient(160deg, #241535 0%, #1a0f28 100%);
-        --nw-page-left-bg:  linear-gradient(155deg, #150c22 0%, #0d0815 100%);
-        --nw-page-right-bg: linear-gradient(205deg, #0d0815 0%, #110a1c 100%);
-        --nw-spine-mid:  #2c1558;
-        --nw-spine-edge: #08050f;
-        --nw-spine-line: #6030a0;
-        --nw-tab-bg:     #150c22;
-        --nw-tab-active: linear-gradient(135deg, #4a1e7a, #6c3483);
-        --nw-btn-bg:     linear-gradient(135deg, #4a1e7a, #6c3483);
-        --nw-detail-bg:  linear-gradient(160deg, #1e1130 0%, #150c22 100%);
-        --nw-panel-bg:   linear-gradient(160deg, #170d25 0%, #110a1c 100%);
-        --nw-scrollbar:  #3a2060;
-        --nw-overlay-bg: rgba(13, 8, 21, 0.96);
     }
 }
