@@ -2700,3 +2700,37 @@
         text-align: center;
     }
 }
+/* На телефоне книга/панель живут в body — дублируем переменные,
+   чтобы цвета не потерялись при выносе из #nw-root */
+@media (max-width: 760px) {
+    body {
+        --nw-mana:       #5b2d8a;
+        --nw-mana-top:   #b060e0;
+        --nw-blood:      #c0392b;
+        --nw-glow-red:   rgba(192, 57, 43, 0.35);
+        --nw-flask-glow: rgba(155, 89, 182, 0.45);
+        --nw-bg:         #100a18;
+        --nw-bg2:        #1a1025;
+        --nw-bg3:        #0d0815;
+        --nw-border:     #3a2060;
+        --nw-accent:     #9b59b6;
+        --nw-accent2:    #6c3483;
+        --nw-text:       #c8b8e0;
+        --nw-text-dim:   #6a5080;
+        --nw-glow:       rgba(155, 89, 182, 0.45);
+        --nw-card-bg:    linear-gradient(160deg, #1a0f28 0%, #140b1f 100%);
+        --nw-card-hover: linear-gradient(160deg, #241535 0%, #1a0f28 100%);
+        --nw-page-left-bg:  linear-gradient(155deg, #150c22 0%, #0d0815 100%);
+        --nw-page-right-bg: linear-gradient(205deg, #0d0815 0%, #110a1c 100%);
+        --nw-spine-mid:  #2c1558;
+        --nw-spine-edge: #08050f;
+        --nw-spine-line: #6030a0;
+        --nw-tab-bg:     #150c22;
+        --nw-tab-active: linear-gradient(135deg, #4a1e7a, #6c3483);
+        --nw-btn-bg:     linear-gradient(135deg, #4a1e7a, #6c3483);
+        --nw-detail-bg:  linear-gradient(160deg, #1e1130 0%, #150c22 100%);
+        --nw-panel-bg:   linear-gradient(160deg, #170d25 0%, #110a1c 100%);
+        --nw-scrollbar:  #3a2060;
+        --nw-overlay-bg: rgba(13, 8, 21, 0.96);
+    }
+}
