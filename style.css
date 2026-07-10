@@ -2718,16 +2718,17 @@
 /* ─── МОБИЛЬНАЯ КНИГА: КОМПАКТНАЯ + ПО ЦЕНТРУ ──────────────── */
 /* ═══════════════════════════════════════════════════════════ */
 @media (max-width: 760px) {
-    /* книга по центру экрана, компактнее по высоте */
+    /* книга по центру за счёт равных отступов сверху и снизу */
     #nw-book {
-        top: 50% !important;
-        left: 50% !important;
-        bottom: auto !important;
-        right: auto !important;
-        transform: translate(-50%, -50%) !important;
-        width: 96vw !important;
-        height: 82dvh !important;
+        top: 9dvh !important;
+        bottom: 9dvh !important;
+        left: 2vw !important;
+        right: 2vw !important;
+        width: auto !important;
+        height: auto !important;
+        transform: none !important;
         border-radius: 14px !important;
+        overflow: hidden !important;
     }
 
     /* уменьшаем отступ сверху у страниц (меньше пустоты) */
@@ -2752,17 +2753,3 @@
         padding-left: 0 !important;
     }
 }
-@media (max-width: 760px) {
-    /* крестик и питание — прижимаем к самой книге, а не к экрану */
-    #nw-book #nw-close {
-        position: absolute !important;
-        top: 8px !important;
-        right: 8px !important;
-    }
-    #nw-book .nw-power-btn {
-        position: absolute !important;
-        top: 8px !important;
-        right: 52px !important;
-    }
-}
-
