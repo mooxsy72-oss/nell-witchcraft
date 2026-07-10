@@ -927,7 +927,7 @@ function saveBookPos(el) {
 }
 
 function restoreBookPos(el) {
-    if (window.innerWidth < 760) {
+    if (window.innerWidth <= 760) {
         el.style.left = ''; el.style.top = '';
         el.style.right = ''; el.style.bottom = '';
         el.style.transform = '';
