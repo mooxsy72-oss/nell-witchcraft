@@ -1109,7 +1109,14 @@ if (sendBut) {
     // Обработчики — все ПОСЛЕ того как элементы добавлены в DOM
     toggleBtn.addEventListener('click', togglePanel);
 
-    document.getElementById('nw-close').addEventListener('click', () => setPanel(false));
+    const closeBtn = document.getElementById('nw-close');
+    closeBtn.addEventListener('click', () => setPanel(false));
+    closeBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setPanel(false);
+    }, { passive: false });
+
     document.getElementById('nw-power-btn').addEventListener('click', () => {
         setEnabled(!isEnabled());
         showNotify(isEnabled() ? 'Гримуар включен' : 'Гримуар отключен', 'info');
@@ -1207,26 +1214,33 @@ function setPanel(open) {
     const book = document.getElementById('nw-book');
     if (!book) return;
 
-    // оверлей-затемнение (создаём один раз)
+    // оверлей-затемнение (создаём один раз, кладём в body)
     let overlay = document.getElementById('nw-book-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'nw-book-overlay';
         overlay.classList.add('nw-hidden');
-        (document.getElementById('nw-root') || document.body).appendChild(overlay);
+        document.body.appendChild(overlay);
         overlay.addEventListener('click', () => setPanel(false));
+        overlay.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            setPanel(false);
+        }, { passive: false });
     }
 
     if (open) {
         restoreBookPos(book);
         book.classList.remove('nw-hidden');
         overlay.classList.remove('nw-hidden');
+        // на мобильном всегда открываем сначала страницу МАНЫ
+        if (window.innerWidth < 760) setMobilePage(1);
         renderPanel();
     } else {
         book.classList.add('nw-hidden');
         overlay.classList.add('nw-hidden');
     }
 }
+
 
 // ─── МОБИЛЬНОЕ ПЕРЕЛИСТЫВАНИЕ СТРАНИЦ ─────────────────────────
 let mobilePage = 0; // 0 = заклинания, 1 = мана
@@ -1243,26 +1257,32 @@ function setMobilePage(page) {
 
 function bindMobilePages() {
     const dots = document.getElementById('nw-mobile-dots');
-    if (!dots) return;
-    dots.querySelectorAll('.nw-dot').forEach(d => {
-        d.addEventListener('click', () => setMobilePage(+d.dataset.page));
-    });
+    if (dots) {
+        dots.querySelectorAll('.nw-dot').forEach(d => {
+            d.addEventListener('click', () => setMobilePage(+d.dataset.page));
+        });
+    }
 
-    // свайп по книге
     const book = document.getElementById('nw-book');
     if (!book) return;
-    let touchStartX = 0;
+    let touchStartX = 0, touchStartY = 0;
     book.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
     }, { passive: true });
     book.addEventListener('touchend', (e) => {
         if (window.innerWidth >= 760) return;
+        // не свайпаем если тапнули по кнопке/ссылке/инпуту
+        if (e.target.closest('button, input, a, .nw-spell-cell, .nw-quick-slot, textarea, select')) return;
         const dx = e.changedTouches[0].clientX - touchStartX;
-        if (Math.abs(dx) < 55) return; // слишком короткий свайп
-        if (dx < 0 && mobilePage === 0) setMobilePage(1);      // свайп влево → мана
-        else if (dx > 0 && mobilePage === 1) setMobilePage(0); // свайп вправо → заклинания
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        // свайп только если горизонтальный жест явно длиннее вертикального
+        if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy)) return;
+        if (dx < 0 && mobilePage === 1) setMobilePage(0);      // влево → заклинания
+        else if (dx > 0 && mobilePage === 0) setMobilePage(1); // вправо → мана
     }, { passive: true });
 }
+
 
 // ─── CUSTOM SPELL FORM ────────────────────────────────────────
 function renderCustomSpellForm(container) {
