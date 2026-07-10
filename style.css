@@ -2516,80 +2516,115 @@
     .nw-path-stats { grid-template-columns: repeat(2, 1fr); }
     .nw-path-hero-title { font-size: 1rem; }
 }
-/* ─── МОБИЛЬНЫЙ ПЕРЕКЛЮЧАТЕЛЬ СТРАНИЦ ─────────────────────── */
-/* На ПК переключатель скрыт полностью */
-#nw-mobile-tabs { display: none; }
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── МОБИЛЬНАЯ КНИГА: ОДНА СТРАНИЦА + СВАЙП + ТОЧКИ ───────── */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* Точки-индикатор на ПК скрыты */
+#nw-mobile-dots { display: none; }
 
 @media (max-width: 760px) {
-    #nw-mobile-tabs {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-        padding: 10px 12px 8px;
-        position: sticky;
-        top: 0;
-        z-index: 30;
-        background: var(--nw-bg3);
-        border-bottom: 1px solid var(--nw-border);
-        flex-shrink: 0;
-    }
-    .nw-mtab {
-        flex: 1;
-        max-width: 200px;
-        background: var(--nw-tab-bg);
-        border: 1px solid var(--nw-border);
-        border-radius: 8px;
-        color: var(--nw-text-dim);
-        font-size: 0.9rem;
-        padding: 10px 8px;
-        cursor: pointer;
-        letter-spacing: 0.04em;
-        transition: color 0.2s, background 0.2s, box-shadow 0.2s;
-        font-family: inherit;
-    }
-    .nw-mtab-active {
-        color: #fff;
-        border-color: var(--nw-accent);
-        background: var(--nw-tab-active);
-        box-shadow: 0 0 10px var(--nw-glow);
+
+    /* ── Книга: контейнер одной видимой страницы ── */
+    #nw-book {
+        flex-direction: row !important;
+        overflow: hidden !important;        /* прячем вторую страницу за краем */
     }
 
-    /* Показываем только выбранную страницу */
-    #nw-book[data-mobile-page="left"]  .nw-page-right { display: none; }
-    #nw-book[data-mobile-page="right"] .nw-page-left  { display: none; }
+    /* ── Страницы: каждая занимает ровно ширину экрана ── */
+    #nw-book .nw-page-left,
+    #nw-book .nw-page-right {
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        overflow-y: auto !important;
+        border-radius: 0 !important;
+        padding: 60px 14px 20px !important;   /* сверху отступ под шапку/крестик */
+        transition: transform 0.38s cubic-bezier(.4, 0, .2, 1);
+    }
 
-    /* Корешок между страницами на телефоне не нужен */
-    #nw-book .nw-spine { display: none; }
+    /* ── Логика сдвига: показываем нужную страницу ── */
+    /* Страница "Сила" (right) активна: обе страницы на месте */
+    #nw-book[data-mobile-page="right"] .nw-page-right { transform: translateX(0); }
+    #nw-book[data-mobile-page="right"] .nw-page-left  { transform: translateX(0); }
 
-    /* Кристалл-амулет тоже прячем — он для разворота книги */
-    #nw-book .nw-deco-crystal { display: none; }
+    /* Страница "Заклинания" (left) активна: сдвигаем обе влево на 1 экран */
+    #nw-book[data-mobile-page="left"] .nw-page-right { transform: translateX(-100%); }
+    #nw-book[data-mobile-page="left"] .nw-page-left  { transform: translateX(-100%); }
 
-    /* Крестик закрытия — крупный, поверх всего */
+    /* Порядок в разметке: сначала left, потом right.
+       Меняем порядок отображения, чтобы right (Сила) была первой */
+    #nw-book .nw-page-left  { order: 2; }
+    #nw-book .nw-page-right { order: 1; }
+
+    /* Корешок между страницами прячем */
+    #nw-book .nw-spine { display: none !important; }
+    #nw-book .nw-deco-crystal { display: none !important; }
+
+    /* ── Крестик закрытия: крупный кружок в углу ── */
     #nw-close {
         position: fixed !important;
-        top: 8px !important;
+        top: 10px !important;
         right: 12px !important;
-        z-index: 100001 !important;
-        font-size: 1.6rem !important;
+        z-index: 100002 !important;
+        font-size: 1.4rem !important;
         color: var(--nw-text) !important;
         background: var(--nw-bg2) !important;
         border: 1px solid var(--nw-border) !important;
         border-radius: 50% !important;
-        width: 40px;
-        height: 40px;
-        display: flex;
+        width: 38px;
+        height: 38px;
+        display: flex !important;
         align-items: center;
         justify-content: center;
         padding: 0 !important;
         line-height: 1;
+        box-shadow: 0 0 10px var(--nw-glow);
     }
-    #nw-close:hover { color: var(--nw-accent) !important; }
 
-    /* Переключатель не должен налезать на крестик */
-    #nw-mobile-tabs { padding-right: 60px; }
-
-    /* Кнопку питания и ручку перетаскивания на телефоне прячем */
-    #nw-book .nw-power-btn,
+    /* Кнопку питания оставляем рядом, ручку перетаскивания прячем */
+    #nw-book .nw-power-btn {
+        position: fixed !important;
+        top: 10px !important;
+        right: 58px !important;
+        z-index: 100002 !important;
+    }
     #nw-drag-handle { display: none !important; }
-}
 
+    /* ── Точки-индикатор внизу книги ── */
+    #nw-mobile-dots {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        position: fixed;
+        left: 50%;
+        bottom: 10px;
+        transform: translateX(-50%);
+        z-index: 100002;
+        padding: 8px 16px;
+        background: color-mix(in srgb, var(--nw-bg2) 85%, transparent);
+        border: 1px solid var(--nw-border);
+        border-radius: 20px;
+        box-shadow: 0 0 12px var(--nw-glow);
+        backdrop-filter: blur(6px);
+    }
+    .nw-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--nw-text-dim);
+        opacity: 0.5;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .nw-dot-active {
+        width: 24px;
+        border-radius: 5px;
+        opacity: 1;
+        background: var(--nw-accent);
+        box-shadow: 0 0 8px var(--nw-glow);
+    }
+}
