@@ -698,16 +698,19 @@
 .nw-power-btn {
     position: absolute;
     top: 14px;
-    right: 58px;
+    right: 54px;
     z-index: 20;
+    height: 22px;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
 }
+
 .nw-power-dot {
     display: inline-block;
     width: 9px;
@@ -2820,4 +2823,200 @@
     #nw-book .nw-cell-cost {
         font-size: 0.62rem !important;
     }
+}
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── ФИКС ПОЛЕЙ ФОРМЫ СОЗДАНИЯ ЗАКЛИНАНИЯ (все темы) ──────── */
+/* ═══════════════════════════════════════════════════════════ */
+#nw-book .nw-custom-row input[type="text"],
+#nw-book .nw-custom-row input[type="number"],
+#nw-book .nw-custom-row input[type="file"],
+#nw-book .nw-custom-row textarea,
+#nw-book .nw-custom-row select {
+    background: var(--nw-bg) !important;
+    background-color: var(--nw-bg) !important;
+    background-image: none !important;
+    border: 1px solid var(--nw-border) !important;
+    border-radius: 6px !important;
+    color: var(--nw-text) !important;
+    font-size: 0.78rem !important;
+    padding: 8px 10px !important;
+    font-family: inherit !important;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3) !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
+
+/* фокус */
+#nw-book .nw-custom-row input:focus,
+#nw-book .nw-custom-row textarea:focus,
+#nw-book .nw-custom-row select:focus {
+    outline: none !important;
+    border-color: var(--nw-accent) !important;
+    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3),
+                0 0 10px var(--nw-glow) !important;
+}
+
+/* placeholder */
+#nw-book .nw-custom-row input::placeholder,
+#nw-book .nw-custom-row textarea::placeholder {
+    color: var(--nw-text-dim) !important;
+    opacity: 0.7 !important;
+}
+
+/* выпадающий список — стрелка + опции */
+#nw-book .nw-custom-row select {
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--nw-accent) 50%),
+        linear-gradient(135deg, var(--nw-accent) 50%, transparent 50%) !important;
+    background-position:
+        calc(100% - 15px) center,
+        calc(100% - 10px) center !important;
+    background-size: 5px 5px, 5px 5px !important;
+    background-repeat: no-repeat !important;
+    padding-right: 28px !important;
+    cursor: pointer !important;
+}
+#nw-book .nw-custom-row select option {
+    background: var(--nw-bg2) !important;
+    color: var(--nw-text) !important;
+}
+
+/* поле выбора файла — кнопка внутри */
+#nw-book .nw-custom-row input[type="file"] {
+    padding: 6px 10px !important;
+    cursor: pointer !important;
+    line-height: 1.6 !important;
+}
+#nw-book .nw-custom-row input[type="file"]::file-selector-button {
+    background: var(--nw-btn-bg) !important;
+    border: 1px solid var(--nw-accent) !important;
+    border-radius: 5px !important;
+    color: #fff !important;
+    font-size: 0.72rem !important;
+    padding: 4px 12px !important;
+    margin-right: 10px !important;
+    cursor: pointer !important;
+    font-family: inherit !important;
+    transition: box-shadow 0.2s !important;
+}
+#nw-book .nw-custom-row input[type="file"]::file-selector-button:hover {
+    box-shadow: 0 0 10px var(--nw-glow) !important;
+}
+
+/* number: убрать светлые спиннеры / выровнять под тему */
+#nw-book .nw-custom-row input[type="number"] {
+    -moz-appearance: textfield !important;
+}
+#nw-book .nw-custom-row input[type="number"]::-webkit-outer-spin-button,
+#nw-book .nw-custom-row input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+
+/* автозаполнение хрома — убираем белый фон */
+#nw-book .nw-custom-row input:-webkit-autofill,
+#nw-book .nw-custom-row textarea:-webkit-autofill {
+    -webkit-text-fill-color: var(--nw-text) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--nw-bg) inset !important;
+    caret-color: var(--nw-text) !important;
+    transition: background-color 9999s ease-in-out 0s !important;
+}
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── ФИКС ВКЛАДКИ «ПУТЬ»: ОБРЕЗАННАЯ ЛУНА + СЕРАЯ ТЕНЬ ────── */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* герой-блок больше не режет содержимое сверху */
+#nw-book .nw-path-hero {
+    overflow: visible !important;
+    padding-top: 26px !important;
+}
+
+/* луна: убираем обрезку, добавляем воздух сверху */
+#nw-book .nw-path-moon {
+    overflow: visible !important;
+    margin-top: 4px !important;
+    padding: 4px 0 !important;
+    line-height: 1.2 !important;
+}
+
+/* декоративная строка ✦✧ сверху — не даём ей налезать на луну */
+#nw-book .nw-path-hero::before {
+    top: 8px !important;
+    z-index: 0 !important;
+}
+#nw-book .nw-path-moon,
+#nw-book .nw-path-hero-title,
+#nw-book .nw-path-hero-sub,
+#nw-book .nw-path-stats,
+#nw-book .nw-path-progress-wrap {
+    position: relative;
+    z-index: 1;
+}
+
+/* серое пятно: radial-gradient на светлой теме давал грязную тень —
+   заменяем на чистый цвет через переменную */
+#nw-root[data-nw-theme="light"] #nw-book .nw-path-hero {
+    background:
+        radial-gradient(ellipse at 50% 0%,
+            color-mix(in srgb, var(--nw-accent) 12%, transparent),
+            transparent 60%),
+        var(--nw-detail-bg) !important;
+    box-shadow: 0 0 20px var(--nw-glow),
+                inset 0 0 20px rgba(255, 255, 255, 0.3) !important;
+}
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── ФИКС МЕНЮ НАСТРОЕК: ОБРЕЗАННЫЕ SELECT ────────────────── */
+/* ═══════════════════════════════════════════════════════════ */
+
+/* строки настроек: даём select-ам занять место */
+#nw-settings-content .nw-set-row {
+    align-items: center;
+    gap: 10px;
+}
+
+/* лейбл не должен вытеснять select */
+#nw-settings-content .nw-set-row label {
+    flex: 0 1 auto;
+    min-width: 120px;
+}
+
+/* все select в настройках — авто-ширина по контенту, не режутся */
+#nw-settings-content select {
+    width: auto !important;
+    min-width: 110px !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+    padding: 4px 26px 4px 10px !important;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-image:
+        linear-gradient(45deg, transparent 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, transparent 50%) !important;
+    background-position:
+        calc(100% - 14px) center,
+        calc(100% - 9px) center !important;
+    background-size: 5px 5px, 5px 5px !important;
+    background-repeat: no-repeat !important;
+}
+
+/* перебиваем узкий .nw-set-input именно для select */
+#nw-settings-content select.nw-set-input {
+    width: auto !important;
+    min-width: 110px !important;
+}
+
+/* тему гримуара сделаем чуть шире — там длинный текст «Адаптивная» */
+#nw-settings-content #nw-select-theme {
+    min-width: 150px !important;
+}
+
+/* числовые инпуты оставляем узкими, но не режем */
+#nw-settings-content input[type="number"].nw-set-input {
+    width: 70px !important;
+    min-width: 70px !important;
+    flex: 0 0 auto !important;
 }
