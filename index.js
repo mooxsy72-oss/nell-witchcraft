@@ -1191,14 +1191,28 @@ function setPanel(open) {
     panelOpen = open;
     const book = document.getElementById('nw-book');
     if (!book) return;
+
+    // оверлей-затемнение (создаём один раз)
+    let overlay = document.getElementById('nw-book-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'nw-book-overlay';
+        overlay.classList.add('nw-hidden');
+        (document.getElementById('nw-root') || document.body).appendChild(overlay);
+        overlay.addEventListener('click', () => setPanel(false));
+    }
+
     if (open) {
         restoreBookPos(book);
         book.classList.remove('nw-hidden');
+        overlay.classList.remove('nw-hidden');
         renderPanel();
     } else {
         book.classList.add('nw-hidden');
+        overlay.classList.add('nw-hidden');
     }
 }
+
 
 // ─── CUSTOM SPELL FORM ────────────────────────────────────────
 function renderCustomSpellForm(container) {
