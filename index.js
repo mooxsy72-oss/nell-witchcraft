@@ -966,7 +966,13 @@ function buildPanelSkeleton() {
         <div id="nw-book" class="nw-hidden" role="dialog" aria-label="Гримуар">
             <button id="nw-power-btn" class="nw-power-btn" title="Расширение активно (нажми чтобы отключить)"><span id="nw-power-dot" class="nw-power-dot"></span></button>
             <button id="nw-close" aria-label="Закрыть">✕</button>
-            <div id="nw-drag-handle" title="Перетащить книгу">⠿</div>
+            <div id="nw-drag-handle" title="Перетащить книгу">📌</div>
+            <div id="nw-mobile-tabs">
+                <button class="nw-mtab nw-mtab-active" data-page="right">✨ Мана</button>
+                <button class="nw-mtab" data-page="left">📖 Заклинания</button>
+            </div>
+
+
 
 <div class="nw-page nw-page-left">
     <div class="nw-page-title" id="nw-title">Книга заклинаний</div>
@@ -1120,10 +1126,24 @@ if (sendBut) {
         });
     });
 
+    // Мобильный переключатель страниц (Заклинания / Сила)
+    document.querySelectorAll('.nw-mtab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const page = btn.dataset.page;
+            document.querySelectorAll('.nw-mtab').forEach(b => b.classList.remove('nw-mtab-active'));
+            btn.classList.add('nw-mtab-active');
+            const book = document.getElementById('nw-book');
+            if (book) book.dataset.mobilePage = page;
+        });
+    });
+
     // Перетаскивание — только за ручку в правом нижнем углу
     const bookEl = document.getElementById('nw-book');
     makeDraggable(bookEl, document.getElementById('nw-drag-handle'));
+    if (bookEl) bookEl.dataset.mobilePage = 'right';
 }
+
+
 
 
 // ─── DRAG (перетаскивание кнопки и книги) ─────────────────────
