@@ -2686,3 +2686,31 @@
         transform: translateY(-50%) translateX(calc(-100% + 22px)) !important;
     }
 }
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── МОБИЛЬНЫЙ ФИКС: УБИРАЕМ ПУСТОТУ СВЕРХУ ───────────────── */
+/* ═══════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+    /* меньше отступ сверху у страниц */
+    #nw-book .nw-page-left,
+    #nw-book .nw-page-right {
+        padding-top: 42px !important;
+        padding-bottom: 20px !important;
+    }
+
+    /* прижимаем заголовок и подзаголовок — убираем воздух */
+    #nw-book .nw-page-title {
+        margin-top: 0 !important;
+        margin-bottom: 2px !important;
+        font-size: 0.82rem !important;
+    }
+    #nw-book .nw-page-sub {
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+    }
+
+    /* на левой странице заголовок был сдвинут вправо под иконки — на мобилке центрируем */
+    #nw-book .nw-page-left > .nw-page-title,
+    #nw-book .nw-page-left > .nw-page-sub {
+        padding-left: 0 !important;
+    }
+}
