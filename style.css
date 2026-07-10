@@ -2142,15 +2142,19 @@
 }
 /* ═══ БОКОВАЯ ПАНЕЛЬ БЫСТРОГО КАСТА ═════════════════════════ */
 #nw-sidebar {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 8000;
-    display: flex;
-    align-items: center;
+    position: fixed !important;
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    z-index: 8000 !important;
+    display: flex !important;
+    align-items: center !important;
+    height: auto !important;
+    max-height: 80vh !important;
     font-family: var(--mainFontFamily, 'Georgia', serif);
     transition: transform 0.35s cubic-bezier(.22,.9,.44,1);
 }
+
 #nw-sidebar.nw-hidden { display: none; }
 
 /* внутренняя коробка с кнопками */
@@ -2169,18 +2173,22 @@
 
 /* сторона: справа */
 #nw-sidebar[data-side="right"] {
-    right: 0;
+    right: 0 !important;
+    left: auto !important;
     flex-direction: row;
 }
+
 #nw-sidebar[data-side="right"] .nw-sb-inner {
     border-radius: 14px 0 0 14px;
     border-right: none;
 }
 /* сторона: слева */
 #nw-sidebar[data-side="left"] {
-    left: 0;
+    left: 0 !important;
+    right: auto !important;
     flex-direction: row-reverse;
 }
+
 #nw-sidebar[data-side="left"] .nw-sb-inner {
     border-radius: 0 14px 14px 0;
     border-left: none;
@@ -2329,10 +2337,10 @@
 
     /* в свёрнутом виде торчит язычок 22px */
     #nw-sidebar[data-side="right"].nw-sb-collapsed {
-        transform: translateY(-50%) translateX(calc(100% - 22px));
+        transform: translateY(-50%) translateX(calc(100% - 22px)) !important;
     }
     #nw-sidebar[data-side="left"].nw-sb-collapsed {
-        transform: translateY(-50%) translateX(calc(-100% + 22px));
+        transform: translateY(-50%) translateX(calc(-100% + 22px)) !important;
     }
 }
 /* ═══ ВКЛАДКА «ПУТЬ ВЕДЬМЫ» ═════════════════════════════════ */
