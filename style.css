@@ -1000,12 +1000,16 @@
 
 
     .nw-page-left, .nw-page-right {
-        flex: none;
-        overflow: visible;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
         height: auto;
+        -webkit-overflow-scrolling: touch;
     }
-    .nw-page-left { padding: 40px 12px 10px; }
+    .nw-page-left { padding: 20px 12px 16px; }
     .nw-page-right { padding: 20px 12px 16px; }
+
 
     /* рейка уровней — горизонтальная лента */
     .nw-left-body { flex-direction: column; gap: 8px; }
@@ -1022,9 +1026,10 @@
     .nw-spells {
         overflow-y: visible;
         max-height: none;
-        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
-        gap: 8px 6px;
+        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 10px 6px;
     }
+
     .nw-cell-frame { width: 56px; height: 56px; }
     .nw-cell-name { font-size: 0.56rem; max-width: 74px; }
 
