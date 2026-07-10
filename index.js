@@ -1118,11 +1118,13 @@ if (sendBut) {
     document.querySelectorAll('.nw-tab').forEach(btn => {
         btn.addEventListener('click', () => {
             activeTab = btn.dataset.tab;
+            spellPage = 0;
             document.querySelectorAll('.nw-tab').forEach(b => b.classList.remove('nw-tab-active'));
             btn.classList.add('nw-tab-active');
             renderSpells();
         });
     });
+
 
     // Мобильное переключение страниц (точки + свайп)
     const bookEl = document.getElementById('nw-book');
@@ -1519,6 +1521,10 @@ function renderPanel() {
 
 
 
+// Текущая страница списка заклинаний (для постраничной листалки на телефоне)
+let spellPage = 0;
+const SPELLS_PER_PAGE_MOBILE = 6;
+
 function renderSpells() {
     const container = document.getElementById('nw-spells');
     if (!container || !state) return;
@@ -1540,14 +1546,26 @@ function renderSpells() {
     }
     container.classList.remove('nw-levels-mode');
 
-
-    const list = getAllSpells().filter(s =>
+    let list = getAllSpells().filter(s =>
         (activeTab === 'all' || s.school === activeTab)
         && (activeLevel === 'all' || s.level === activeLevel)
     );
 
+    // ── Постраничная листалка (только на телефоне) ──
+    const isMobile = window.innerWidth <= 760;
+    let pageInfo = null;
 
-    container.innerHTML = list.map(spell => {
+    if (isMobile) {
+        const total = list.length;
+        const pages = Math.max(1, Math.ceil(total / SPELLS_PER_PAGE_MOBILE));
+        if (spellPage >= pages) spellPage = pages - 1;
+        if (spellPage < 0) spellPage = 0;
+        const start = spellPage * SPELLS_PER_PAGE_MOBILE;
+        list = list.slice(start, start + SPELLS_PER_PAGE_MOBILE);
+        pageInfo = { pages, current: spellPage, total };
+    }
+
+    const cellsHtml = list.map(spell => {
         const known = spell.level <= state.level;
         const color = SCHOOL_COLORS[spell.school];
         const cls = [
@@ -1569,6 +1587,19 @@ function renderSpells() {
         </div>`;
     }).join('');
 
+    // Панель со стрелками (только на телефоне и если страниц больше одной)
+    let pagerHtml = '';
+    if (isMobile && pageInfo && pageInfo.pages > 1) {
+        pagerHtml = `
+        <div class="nw-spell-pager">
+            <button class="nw-pager-btn" id="nw-pager-prev" ${pageInfo.current === 0 ? 'disabled' : ''}>‹</button>
+            <span class="nw-pager-info">${pageInfo.current + 1} / ${pageInfo.pages}</span>
+            <button class="nw-pager-btn" id="nw-pager-next" ${pageInfo.current >= pageInfo.pages - 1 ? 'disabled' : ''}>›</button>
+        </div>`;
+    }
+
+    container.innerHTML = `<div class="nw-spells-grid">${cellsHtml}</div>${pagerHtml}`;
+
     container.querySelectorAll('.nw-spell-cell').forEach(el => {
         el.addEventListener('click', () => {
             selectedSpellId = el.dataset.spell;
@@ -1576,8 +1607,18 @@ function renderSpells() {
         });
     });
 
+    document.getElementById('nw-pager-prev')?.addEventListener('click', () => {
+        spellPage--;
+        renderSpells();
+    });
+    document.getElementById('nw-pager-next')?.addEventListener('click', () => {
+        spellPage++;
+        renderSpells();
+    });
+
     renderDetail();
 }
+
 
 function renderLevelsTab(container) {
     const allSpells = getAllSpells();
@@ -1747,6 +1788,7 @@ function renderLevelRail() {
     rail.querySelectorAll('.nw-lvl-btn').forEach(b => {
         b.addEventListener('click', () => {
             activeLevel = b.dataset.lvl === 'all' ? 'all' : +b.dataset.lvl;
+            spellPage = 0;
             renderLevelRail();
             renderSpells();
         });
