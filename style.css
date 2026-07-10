@@ -236,21 +236,6 @@
     from { opacity: 0; transform: translate(-50%,-47%) scale(0.93); }
     to   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
 }
-/* ─── ЗАТЕМНЕНИЕ ФОНА ЗА КНИГОЙ (мобильный) ────────────────── */
-#nw-book-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9080;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(2px);
-    opacity: 0;
-    animation: nw-overlay-in 0.25s ease forwards;
-}
-#nw-book-overlay.nw-hidden { display: none; }
-@keyframes nw-overlay-in {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
 
 /* ─── CLOSE BUTTON ──────────────────────────────────────────── */
 #nw-close {
@@ -984,36 +969,26 @@
 
 @media (max-width: 760px) {
     #nw-book {
-        position: fixed !important;
-        width: 92vw !important;
-        height: 82vh !important;
-        max-height: 82vh !important;
-        top: 9vh !important;
-        left: 4vw !important;
+        width: 100vw !important;
+        height: 90vh !important;
+        top: 0 !important;
         bottom: auto !important;
+        left: 0 !important;
         right: auto !important;
         transform: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        z-index: 99999 !important;
+        flex-direction: column;
+        border-radius: 0 0 14px 14px;
+        overflow-y: auto;
+        z-index: 100000 !important;
     }
-
-
 
     .nw-page-left, .nw-page-right {
-        flex: 1 1 50% !important;
-        min-height: 0 !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        height: auto !important;
-        -webkit-overflow-scrolling: touch;
+        flex: none;
+        overflow: visible;
+        height: auto;
     }
-    .nw-page-left { padding: 18px 12px 16px !important; }
-    .nw-page-right { padding: 18px 12px 16px !important; }
-
-
+    .nw-page-left { padding: 40px 12px 10px; }
+    .nw-page-right { padding: 20px 12px 16px; }
 
     /* рейка уровней — горизонтальная лента */
     .nw-left-body { flex-direction: column; gap: 8px; }
@@ -1030,10 +1005,9 @@
     .nw-spells {
         overflow-y: visible;
         max-height: none;
-        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-        gap: 10px 6px;
+        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+        gap: 8px 6px;
     }
-
     .nw-cell-frame { width: 56px; height: 56px; }
     .nw-cell-name { font-size: 0.56rem; max-width: 74px; }
 
@@ -1069,116 +1043,10 @@
     /* декор на телефоне прячем — экономим место */
     .nw-deco-crystal { display: none; }
 
-    /* ─── КНОПКА ЗАКРЫТИЯ (крупная, поверх всего) ─── */
-    #nw-close {
-        font-size: 1.6rem !important;
-        top: 8px !important;
-        right: 10px !important;
-        z-index: 100 !important;
-        width: 40px !important;
-        height: 40px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: rgba(0,0,0,0.35) !important;
-        border-radius: 50% !important;
-        padding: 0 !important;
-    }
-    .nw-power-btn {
-        top: 12px !important;
-        right: 58px !important;
-        z-index: 100 !important;
-    }
-
-    /* ─── ПЕРЕЛИСТЫВАНИЕ СТРАНИЦ ─── */
-    #nw-book { position: relative; }
-
-    #nw-book .nw-page {
-        position: absolute !important;
-        top: 0;
-        left: 0;
-        width: 100% !important;
-        height: 100% !important;
-        flex: none !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        padding: 46px 12px 60px !important;
-        transition: transform 0.35s cubic-bezier(.22,.9,.44,1),
-                    opacity 0.35s ease !important;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* страница 0 = заклинания (левая), страница 1 = мана (правая) */
-    #nw-book[data-mobile-page="0"] .nw-page-left  { transform: translateX(0);     opacity: 1; z-index: 3; }
-    #nw-book[data-mobile-page="0"] .nw-page-right { transform: translateX(100%);  opacity: 0; z-index: 1; pointer-events: none; }
-    #nw-book[data-mobile-page="1"] .nw-page-left  { transform: translateX(-100%); opacity: 0; z-index: 1; pointer-events: none; }
-    #nw-book[data-mobile-page="1"] .nw-page-right { transform: translateX(0);     opacity: 1; z-index: 3; }
-
-    /* корешок и декор на мобильном не нужны */
-    #nw-book .nw-spine,
-    #nw-book .nw-deco-crystal { display: none !important; }
-
-    /* ─── ТОЧКИ-ИНДИКАТОРЫ ─── */
-    .nw-mobile-dots {
-        position: absolute;
-        bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 50;
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        background: rgba(0,0,0,0.4);
-        padding: 7px 14px;
-        border-radius: 20px;
-        backdrop-filter: blur(4px);
-    }
-    .nw-dot {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: transparent;
-        border: none;
-        padding: 4px 6px;
-        cursor: pointer;
-        opacity: 0.5;
-        transition: opacity 0.25s;
-    }
-    .nw-dot::before {
-        content: '';
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: var(--nw-text-dim);
-        transition: background 0.25s, box-shadow 0.25s;
-        flex-shrink: 0;
-    }
-    .nw-dot-label {
-        font-size: 0.62rem;
-        color: var(--nw-text-dim);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        white-space: nowrap;
-        max-width: 0;
-        overflow: hidden;
-        transition: max-width 0.3s ease, color 0.25s;
-    }
-    .nw-dot-active {
-        opacity: 1;
-    }
-    .nw-dot-active::before {
-        background: var(--nw-accent);
-        box-shadow: 0 0 8px var(--nw-glow);
-    }
-    .nw-dot-active .nw-dot-label {
-        max-width: 110px;
-        color: var(--nw-accent);
-    }
+    /* кнопки закрытия/питания чуть крупнее для пальца */
+    #nw-close { font-size: 1.3rem; top: 10px; right: 14px; }
+    .nw-power-btn { top: 10px; right: 52px; }
 }
-
-/* на десктопе точки-индикаторы не показываем */
-.nw-mobile-dots { display: none; }
-
 
 /* ─── КОЛБА V3: тёмное стекло ───────────────────────────────── */
 .nw-flask {
@@ -2466,4 +2334,185 @@
     #nw-sidebar[data-side="left"].nw-sb-collapsed {
         transform: translateY(-50%) translateX(calc(-100% + 22px));
     }
+}
+/* ═══ ВКЛАДКА «ПУТЬ ВЕДЬМЫ» ═════════════════════════════════ */
+.nw-path-hero {
+    position: relative;
+    text-align: center;
+    padding: 20px 18px 18px;
+    border-radius: 12px;
+    background:
+        radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--nw-accent) 18%, transparent), transparent 60%),
+        var(--nw-detail-bg);
+    border: 1px solid var(--nw-accent2);
+    box-shadow: 0 0 24px var(--nw-glow), inset 0 0 30px rgba(0,0,0,0.4);
+    overflow: hidden;
+}
+.nw-path-hero::before {
+    content: '✦ ✧ ✦ ✧ ✦';
+    position: absolute;
+    top: 6px; left: 0; right: 0;
+    text-align: center;
+    font-size: 0.6rem;
+    letter-spacing: 0.5em;
+    color: color-mix(in srgb, var(--nw-accent) 40%, transparent);
+    pointer-events: none;
+}
+.nw-path-moon {
+    font-size: 2.2rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 12px var(--nw-glow));
+    animation: nw-gem-glow 4s ease-in-out infinite;
+}
+.nw-path-hero-title {
+    font-size: 1.15rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nw-accent);
+    text-shadow: 0 0 14px var(--nw-glow);
+    margin-top: 6px;
+}
+.nw-path-hero-sub {
+    font-size: 0.72rem;
+    color: var(--nw-text-dim);
+    line-height: 1.5;
+    margin: 8px auto 0;
+    max-width: 340px;
+}
+
+.nw-path-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 16px;
+}
+.nw-path-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--nw-bg) 55%, transparent);
+    border: 1px solid var(--nw-border);
+}
+.nw-path-stat-num {
+    font-size: 1.05rem;
+    font-weight: bold;
+    color: var(--nw-accent);
+    text-shadow: 0 0 8px var(--nw-glow);
+}
+.nw-path-stat-cap {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--nw-text-dim);
+    text-align: center;
+    line-height: 1.2;
+}
+
+.nw-path-progress-wrap { margin-top: 16px; }
+.nw-path-progress-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.66rem;
+    color: var(--nw-text-dim);
+    margin-bottom: 5px;
+}
+
+.nw-path-timeline-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--nw-accent);
+    text-align: center;
+    margin: 16px 0 10px;
+    text-shadow: 0 0 8px var(--nw-glow);
+}
+.nw-path-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 6px;
+}
+/* вертикальная линия пути */
+.nw-path-timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: linear-gradient(to bottom,
+        transparent, color-mix(in srgb, var(--nw-accent) 60%, transparent), transparent);
+}
+
+.nw-path-row {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    z-index: 1;
+}
+.nw-path-node {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--nw-bg2);
+    border: 1px solid var(--nw-accent);
+    font-size: 0.7rem;
+    color: var(--nw-accent);
+    box-shadow: 0 0 8px var(--nw-glow);
+    margin-top: 2px;
+}
+.nw-path-next .nw-path-node {
+    border-color: #c8a030;
+    color: #f0c060;
+    box-shadow: 0 0 8px rgba(200,160,48,0.35);
+    animation: nw-rune-pulse 2.5s ease-in-out infinite;
+}
+.nw-path-body {
+    flex: 1;
+    background: var(--nw-card-bg);
+    border: 1px solid var(--nw-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+.nw-path-next .nw-path-body {
+    border-color: #c8a030;
+    box-shadow: 0 0 10px rgba(200,160,48,0.15);
+}
+.nw-path-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.nw-path-head b { color: var(--nw-accent); font-size: 0.84rem; }
+.nw-path-next .nw-path-head b { color: #f0c060; }
+.nw-path-xp {
+    font-size: 0.64rem;
+    color: var(--nw-text-dim);
+}
+.nw-path-note {
+    font-size: 0.68rem;
+    color: var(--nw-text-dim);
+    margin-top: 3px;
+    line-height: 1.4;
+}
+.nw-path-note b { color: var(--nw-accent); }
+
+/* цвет для уровней 11+ в левой рейке */
+.nw-lvl-btn-beyond span:first-child { color: color-mix(in srgb, var(--nw-accent) 90%, #fff); }
+.nw-lvl-btn-beyond.nw-lvl-btn-active span:first-child { color: #fff; }
+
+@media (max-width: 760px) {
+    .nw-path-stats { grid-template-columns: repeat(2, 1fr); }
+    .nw-path-hero-title { font-size: 1rem; }
 }
