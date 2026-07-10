@@ -967,28 +967,11 @@
 }
 
 @media (max-width: 760px) {
-    #nw-book {
-        width: 94vw !important;
-        height: 82vh !important;
-        top: 50% !important;
-        bottom: auto !important;
-        left: 50% !important;
-        right: auto !important;
-        transform: translate(-50%, -50%) !important;
-        flex-direction: row;
-        border-radius: 14px !important;
-        overflow: hidden !important;
-        z-index: 100000 !important;
-        border: 1px solid var(--nw-border);
-    }
-
     .nw-page-left, .nw-page-right {
-        flex: none;
-        overflow: visible;
-        height: auto;
+        flex: 0 0 100%;
+        overflow-y: auto;
+        height: 100%;
     }
-    .nw-page-left { padding: 40px 12px 10px; }
-    .nw-page-right { padding: 20px 12px 16px; }
 
     /* рейка уровней — горизонтальная лента */
     .nw-left-body { flex-direction: column; gap: 8px; }
@@ -2317,7 +2300,11 @@
 
 /* ─── ТЕЛЕФОН: тоже сбоку, тоже выдвижная закладка ─────────── */
 @media (max-width: 760px) {
-    #nw-sidebar { top: 44%; }
+    #nw-sidebar {
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
 
     .nw-sb-inner {
         gap: 9px;
@@ -2525,11 +2512,31 @@
 
 @media (max-width: 760px) {
 
-    /* ── Книга: контейнер одной видимой страницы ── */
+    /* ── Книга: компактная, по центру экрана ── */
     #nw-book {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translate(-50%, -50%) !important;
+        width: 92vw !important;
+        max-width: 92vw !important;
+        height: 72vh !important;
+        max-height: 72vh !important;
         flex-direction: row !important;
-        overflow: hidden !important;        /* прячем вторую страницу за краем */
+        border-radius: 14px !important;
+        overflow: hidden !important;
+        border: 1px solid var(--nw-border) !important;
+        z-index: 100000 !important;
     }
+    /* Отменяем сохранённую позицию перетаскивания с ПК */
+    #nw-book.nw-book-moved {
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+    }
+
 
     /* ── Страницы: каждая занимает ровно ширину экрана ── */
     #nw-book .nw-page-left,
@@ -2630,27 +2637,7 @@
         box-shadow: 0 0 8px var(--nw-glow);
     }
 }
-/* ═══════════════════════════════════════════════════════════ */
-/* ─── ФИНАЛЬНЫЙ ФИКС РАЗМЕРА КНИГИ НА ТЕЛЕФОНЕ ────────────── */
-/* ═══════════════════════════════════════════════════════════ */
-@media (max-width: 760px) {
-    #nw-book,
-    #nw-book.nw-book-moved {
-        width: 92vw !important;
-        max-width: 92vw !important;
-        height: 68vh !important;
-        max-height: 68vh !important;
-        top: 50% !important;
-        left: 50% !important;
-        right: auto !important;
-        bottom: auto !important;
-        transform: translate(-50%, -50%) !important;
-        flex-direction: row !important;
-        border-radius: 14px !important;
-        overflow: hidden !important;
-        z-index: 100000 !important;
-    }
-}
+
 /* ─── СЕТКА ЗАКЛИНАНИЙ + ЛИСТАЛКА ──────────────────────────── */
 /* На ПК сетка внутри контейнера ведёт себя как раньше */
 .nw-spells-grid {
