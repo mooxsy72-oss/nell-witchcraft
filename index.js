@@ -1214,7 +1214,6 @@ function setPanel(open) {
     const book = document.getElementById('nw-book');
     if (!book) return;
 
-    // оверлей-затемнение (создаём один раз, кладём в body)
     let overlay = document.getElementById('nw-book-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -1229,17 +1228,24 @@ function setPanel(open) {
     }
 
     if (open) {
-        restoreBookPos(book);
+        try { restoreBookPos(book); } catch (e) {}
         book.classList.remove('nw-hidden');
+        book.style.display = '';
         overlay.classList.remove('nw-hidden');
-        // на мобильном всегда открываем сначала страницу МАНЫ
-        if (window.innerWidth < 760) setMobilePage(1);
-        renderPanel();
+        try {
+            if (window.innerWidth < 760 && typeof setMobilePage === 'function') {
+                setMobilePage(1);
+            }
+        } catch (e) {}
+        try { renderPanel(); } catch (e) {}
     } else {
         book.classList.add('nw-hidden');
+        book.style.display = 'none';
         overlay.classList.add('nw-hidden');
+        overlay.style.display = 'none';
     }
 }
+
 
 
 // ─── МОБИЛЬНОЕ ПЕРЕЛИСТЫВАНИЕ СТРАНИЦ ─────────────────────────
