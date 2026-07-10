@@ -2714,3 +2714,8 @@
         padding-left: 0 !important;
     }
 }
+@media (max-width: 760px) {
+    #nw-book .nw-page-title {
+        color: red !important;
+    }
+}
