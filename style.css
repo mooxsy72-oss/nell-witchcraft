@@ -2715,30 +2715,27 @@
     }
 }
 /* ═══════════════════════════════════════════════════════════ */
-/* ─── МОБИЛЬНАЯ КНИГА: КОМПАКТНАЯ + ПО ЦЕНТРУ ──────────────── */
+/* ─── МОБИЛЬНАЯ КНИГА: КОМПАКТНАЯ ──────────────────────────── */
 /* ═══════════════════════════════════════════════════════════ */
 @media (max-width: 760px) {
-    /* книга по центру за счёт равных отступов сверху и снизу */
     #nw-book {
-        top: 9dvh !important;
-        bottom: 9dvh !important;
+        top: 8dvh !important;
         left: 2vw !important;
-        right: 2vw !important;
-        width: auto !important;
-        height: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        width: 96vw !important;
+        height: 82dvh !important;
         transform: none !important;
         border-radius: 14px !important;
         overflow: hidden !important;
     }
 
-    /* уменьшаем отступ сверху у страниц (меньше пустоты) */
     #nw-book .nw-page-left,
     #nw-book .nw-page-right {
         padding-top: 16px !important;
         padding-bottom: 16px !important;
     }
 
-    /* прижимаем заголовок к верху книги */
     #nw-book .nw-page-title {
         margin-top: 0 !important;
         margin-bottom: 3px !important;
