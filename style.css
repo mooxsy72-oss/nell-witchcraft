@@ -2563,4 +2563,33 @@
 
     /* Кристалл-амулет тоже прячем — он для разворота книги */
     #nw-book .nw-deco-crystal { display: none; }
+
+    /* Крестик закрытия — крупный, поверх всего */
+    #nw-close {
+        position: fixed !important;
+        top: 8px !important;
+        right: 12px !important;
+        z-index: 100001 !important;
+        font-size: 1.6rem !important;
+        color: var(--nw-text) !important;
+        background: var(--nw-bg2) !important;
+        border: 1px solid var(--nw-border) !important;
+        border-radius: 50% !important;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 !important;
+        line-height: 1;
+    }
+    #nw-close:hover { color: var(--nw-accent) !important; }
+
+    /* Переключатель не должен налезать на крестик */
+    #nw-mobile-tabs { padding-right: 60px; }
+
+    /* Кнопку питания и ручку перетаскивания на телефоне прячем */
+    #nw-book .nw-power-btn,
+    #nw-drag-handle { display: none !important; }
 }
+
