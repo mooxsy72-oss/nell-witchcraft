@@ -1069,10 +1069,116 @@
     /* декор на телефоне прячем — экономим место */
     .nw-deco-crystal { display: none; }
 
-    /* кнопки закрытия/питания чуть крупнее для пальца */
-    #nw-close { font-size: 1.3rem; top: 10px; right: 14px; }
-    .nw-power-btn { top: 10px; right: 52px; }
+    /* ─── КНОПКА ЗАКРЫТИЯ (крупная, поверх всего) ─── */
+    #nw-close {
+        font-size: 1.6rem !important;
+        top: 8px !important;
+        right: 10px !important;
+        z-index: 100 !important;
+        width: 40px !important;
+        height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(0,0,0,0.35) !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+    }
+    .nw-power-btn {
+        top: 12px !important;
+        right: 58px !important;
+        z-index: 100 !important;
+    }
+
+    /* ─── ПЕРЕЛИСТЫВАНИЕ СТРАНИЦ ─── */
+    #nw-book { position: relative; }
+
+    #nw-book .nw-page {
+        position: absolute !important;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        height: 100% !important;
+        flex: none !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 46px 12px 60px !important;
+        transition: transform 0.35s cubic-bezier(.22,.9,.44,1),
+                    opacity 0.35s ease !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* страница 0 = заклинания (левая), страница 1 = мана (правая) */
+    #nw-book[data-mobile-page="0"] .nw-page-left  { transform: translateX(0);     opacity: 1; z-index: 3; }
+    #nw-book[data-mobile-page="0"] .nw-page-right { transform: translateX(100%);  opacity: 0; z-index: 1; pointer-events: none; }
+    #nw-book[data-mobile-page="1"] .nw-page-left  { transform: translateX(-100%); opacity: 0; z-index: 1; pointer-events: none; }
+    #nw-book[data-mobile-page="1"] .nw-page-right { transform: translateX(0);     opacity: 1; z-index: 3; }
+
+    /* корешок и декор на мобильном не нужны */
+    #nw-book .nw-spine,
+    #nw-book .nw-deco-crystal { display: none !important; }
+
+    /* ─── ТОЧКИ-ИНДИКАТОРЫ ─── */
+    .nw-mobile-dots {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: rgba(0,0,0,0.4);
+        padding: 7px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(4px);
+    }
+    .nw-dot {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: none;
+        padding: 4px 6px;
+        cursor: pointer;
+        opacity: 0.5;
+        transition: opacity 0.25s;
+    }
+    .nw-dot::before {
+        content: '';
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--nw-text-dim);
+        transition: background 0.25s, box-shadow 0.25s;
+        flex-shrink: 0;
+    }
+    .nw-dot-label {
+        font-size: 0.62rem;
+        color: var(--nw-text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        max-width: 0;
+        overflow: hidden;
+        transition: max-width 0.3s ease, color 0.25s;
+    }
+    .nw-dot-active {
+        opacity: 1;
+    }
+    .nw-dot-active::before {
+        background: var(--nw-accent);
+        box-shadow: 0 0 8px var(--nw-glow);
+    }
+    .nw-dot-active .nw-dot-label {
+        max-width: 110px;
+        color: var(--nw-accent);
+    }
 }
+
+/* на десктопе точки-индикаторы не показываем */
+.nw-mobile-dots { display: none; }
+
 
 /* ─── КОЛБА V3: тёмное стекло ───────────────────────────────── */
 .nw-flask {
