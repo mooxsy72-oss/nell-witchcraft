@@ -1237,6 +1237,19 @@ function setPanel(open) {
     const book = document.getElementById('nw-book');
     if (!book) return;
     if (open) {
+        // На телефоне выносим книгу и точки прямо в body,
+        // чтобы transform/filter родителя не ломал fixed-позицию
+        if (window.innerWidth <= 760) {
+            if (book.parentElement !== document.body) {
+                document.body.appendChild(book);
+            }
+            const dots = document.getElementById('nw-mobile-dots');
+            if (dots && dots.parentElement !== document.body) {
+                document.body.appendChild(dots);
+            }
+            // Убираем любые инлайн-стили позиции — пусть работает чистый CSS
+            book.style.cssText = '';
+        }
         restoreBookPos(book);
         book.classList.remove('nw-hidden');
         renderPanel();
@@ -1244,6 +1257,7 @@ function setPanel(open) {
         book.classList.add('nw-hidden');
     }
 }
+
 
 // ─── CUSTOM SPELL FORM ────────────────────────────────────────
 function renderCustomSpellForm(container) {
@@ -2000,13 +2014,18 @@ function setSidebarCollapsed(collapsed) {
 
 function buildSidebar() {
     if (document.getElementById('nw-sidebar')) return;
-    const root = document.getElementById('nw-root') || document.body;
+    // На телефоне — прямо в body (чтобы fixed работал от экрана),
+    // на ПК — внутрь темы для наследования переменных
+    const parent = (window.innerWidth <= 760)
+        ? document.body
+        : (document.getElementById('nw-root') || document.body);
     const bar = document.createElement('div');
     bar.id = 'nw-sidebar';
     bar.dataset.side = getSidebarSide();
     if (isSidebarCollapsed()) bar.classList.add('nw-sb-collapsed');
-    root.appendChild(bar);
+    parent.appendChild(bar);
 }
+
 
 function renderSidebar() {
     const bar = document.getElementById('nw-sidebar');
