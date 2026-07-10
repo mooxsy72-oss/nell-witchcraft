@@ -1067,8 +1067,18 @@ function buildPanelSkeleton() {
                     </div>
                 </div>
             </div>
+
+            <div class="nw-mobile-dots" id="nw-mobile-dots">
+                <button class="nw-dot nw-dot-active" data-page="0" aria-label="Заклинания">
+                    <span class="nw-dot-label">Заклинания</span>
+                </button>
+                <button class="nw-dot" data-page="1" aria-label="Мана">
+                    <span class="nw-dot-label">Мана</span>
+                </button>
+            </div>
         </div>
     `;
+
 
     root.dataset.nwTheme = getTheme();
     document.body.appendChild(root);
@@ -1122,7 +1132,12 @@ if (sendBut) {
     // Перетаскивание — только за ручку в правом нижнем углу
     const bookEl = document.getElementById('nw-book');
     makeDraggable(bookEl, document.getElementById('nw-drag-handle'));
+
+    // Мобильное переключение страниц
+    bindMobilePages();
+    setMobilePage(0);
 }
+
 
 
 // ─── DRAG (перетаскивание кнопки и книги) ─────────────────────
@@ -1213,6 +1228,41 @@ function setPanel(open) {
     }
 }
 
+// ─── МОБИЛЬНОЕ ПЕРЕЛИСТЫВАНИЕ СТРАНИЦ ─────────────────────────
+let mobilePage = 0; // 0 = заклинания, 1 = мана
+
+function setMobilePage(page) {
+    mobilePage = page;
+    const book = document.getElementById('nw-book');
+    if (!book) return;
+    book.dataset.mobilePage = page;
+    document.querySelectorAll('#nw-mobile-dots .nw-dot').forEach(d => {
+        d.classList.toggle('nw-dot-active', +d.dataset.page === page);
+    });
+}
+
+function bindMobilePages() {
+    const dots = document.getElementById('nw-mobile-dots');
+    if (!dots) return;
+    dots.querySelectorAll('.nw-dot').forEach(d => {
+        d.addEventListener('click', () => setMobilePage(+d.dataset.page));
+    });
+
+    // свайп по книге
+    const book = document.getElementById('nw-book');
+    if (!book) return;
+    let touchStartX = 0;
+    book.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    book.addEventListener('touchend', (e) => {
+        if (window.innerWidth >= 760) return;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) < 55) return; // слишком короткий свайп
+        if (dx < 0 && mobilePage === 0) setMobilePage(1);      // свайп влево → мана
+        else if (dx > 0 && mobilePage === 1) setMobilePage(0); // свайп вправо → заклинания
+    }, { passive: true });
+}
 
 // ─── CUSTOM SPELL FORM ────────────────────────────────────────
 function renderCustomSpellForm(container) {
