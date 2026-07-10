@@ -927,7 +927,7 @@ function saveBookPos(el) {
 }
 
 function restoreBookPos(el) {
-    if (window.innerWidth < 760) {
+    if (window.innerWidth <= 760) {
         el.style.left = ''; el.style.top = '';
         el.style.right = ''; el.style.bottom = '';
         el.style.transform = '';
@@ -982,6 +982,7 @@ function buildPanelSkeleton() {
                 <button class="nw-tab" data-tab="mind">Разум</button>
                 <button class="nw-tab" data-tab="herbalism">Знахарство</button>
                 <button class="nw-tab" data-tab="levels">Уровни</button>
+                <button class="nw-tab" data-tab="path" id="nw-tab-path" style="display:none">🌙 Путь</button>
                 <button class="nw-tab" data-tab="custom" id="nw-tab-custom" style="display:none">✨ Создать</button>
             </div>
             <div class="nw-detail nw-hidden" id="nw-detail"></div>
@@ -1029,7 +1030,7 @@ function buildPanelSkeleton() {
                         <div class="nw-right-col">
                             <div class="nw-panel">
                                 <div class="nw-panel-title">Восстановление маны</div>
-                                <div class="nw-panel-text">Каждые <b>30 минут</b> игрового времени — <b>+1 мана</b><br>(за полный час — <b>+2 маны</b>)</div>
+                                <div class="nw-panel-text">Каждые <b>30 минут</b> игрового времени — <b>+1 мана</b><br>(за час — <b>+2 ед.</b>)</div>
                             </div>
                             <div class="nw-panel">
                                 <div class="nw-panel-title">Ведьмовская кровь</div>
@@ -1067,18 +1068,8 @@ function buildPanelSkeleton() {
                     </div>
                 </div>
             </div>
-
-            <div class="nw-mobile-dots" id="nw-mobile-dots">
-                <button class="nw-dot nw-dot-active" data-page="0" aria-label="Заклинания">
-                    <span class="nw-dot-label">Заклинания</span>
-                </button>
-                <button class="nw-dot" data-page="1" aria-label="Мана">
-                    <span class="nw-dot-label">Мана</span>
-                </button>
-            </div>
         </div>
     `;
-
 
     root.dataset.nwTheme = getTheme();
     document.body.appendChild(root);
@@ -1109,14 +1100,7 @@ if (sendBut) {
     // Обработчики — все ПОСЛЕ того как элементы добавлены в DOM
     toggleBtn.addEventListener('click', togglePanel);
 
-    const closeBtn = document.getElementById('nw-close');
-    closeBtn.addEventListener('click', () => setPanel(false));
-    closeBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setPanel(false);
-    }, { passive: false });
-
+    document.getElementById('nw-close').addEventListener('click', () => setPanel(false));
     document.getElementById('nw-power-btn').addEventListener('click', () => {
         setEnabled(!isEnabled());
         showNotify(isEnabled() ? 'Гримуар включен' : 'Гримуар отключен', 'info');
@@ -1139,12 +1123,7 @@ if (sendBut) {
     // Перетаскивание — только за ручку в правом нижнем углу
     const bookEl = document.getElementById('nw-book');
     makeDraggable(bookEl, document.getElementById('nw-drag-handle'));
-
-    // Мобильное переключение страниц
-    bindMobilePages();
-    setMobilePage(0);
 }
-
 
 
 // ─── DRAG (перетаскивание кнопки и книги) ─────────────────────
@@ -1213,82 +1192,14 @@ function setPanel(open) {
     panelOpen = open;
     const book = document.getElementById('nw-book');
     if (!book) return;
-
-    let overlay = document.getElementById('nw-book-overlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'nw-book-overlay';
-        overlay.classList.add('nw-hidden');
-        document.body.appendChild(overlay);
-        overlay.addEventListener('click', () => setPanel(false));
-        overlay.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            setPanel(false);
-        }, { passive: false });
-    }
-
     if (open) {
-        try { restoreBookPos(book); } catch (e) {}
+        restoreBookPos(book);
         book.classList.remove('nw-hidden');
-        book.style.display = '';
-        overlay.classList.remove('nw-hidden');
-        try {
-            if (window.innerWidth < 760 && typeof setMobilePage === 'function') {
-                setMobilePage(1);
-            }
-        } catch (e) {}
-        try { renderPanel(); } catch (e) {}
+        renderPanel();
     } else {
         book.classList.add('nw-hidden');
-        book.style.display = 'none';
-        overlay.classList.add('nw-hidden');
-        overlay.style.display = 'none';
     }
 }
-
-
-
-// ─── МОБИЛЬНОЕ ПЕРЕЛИСТЫВАНИЕ СТРАНИЦ ─────────────────────────
-let mobilePage = 0; // 0 = заклинания, 1 = мана
-
-function setMobilePage(page) {
-    mobilePage = page;
-    const book = document.getElementById('nw-book');
-    if (!book) return;
-    book.dataset.mobilePage = page;
-    document.querySelectorAll('#nw-mobile-dots .nw-dot').forEach(d => {
-        d.classList.toggle('nw-dot-active', +d.dataset.page === page);
-    });
-}
-
-function bindMobilePages() {
-    const dots = document.getElementById('nw-mobile-dots');
-    if (dots) {
-        dots.querySelectorAll('.nw-dot').forEach(d => {
-            d.addEventListener('click', () => setMobilePage(+d.dataset.page));
-        });
-    }
-
-    const book = document.getElementById('nw-book');
-    if (!book) return;
-    let touchStartX = 0, touchStartY = 0;
-    book.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].clientX;
-        touchStartY = e.changedTouches[0].clientY;
-    }, { passive: true });
-    book.addEventListener('touchend', (e) => {
-        if (window.innerWidth >= 760) return;
-        // не свайпаем если тапнули по кнопке/ссылке/инпуту
-        if (e.target.closest('button, input, a, .nw-spell-cell, .nw-quick-slot, textarea, select')) return;
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-        // свайп только если горизонтальный жест явно длиннее вертикального
-        if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy)) return;
-        if (dx < 0 && mobilePage === 1) setMobilePage(0);      // влево → заклинания
-        else if (dx > 0 && mobilePage === 0) setMobilePage(1); // вправо → мана
-    }, { passive: true });
-}
-
 
 // ─── CUSTOM SPELL FORM ────────────────────────────────────────
 function renderCustomSpellForm(container) {
@@ -1557,8 +1468,13 @@ function renderPanel() {
     const customTab = document.getElementById('nw-tab-custom');
     if (customTab) customTab.style.display = (state.level >= 10) ? '' : 'none';
 
+    // Вкладка «Путь Ведьмы» — открывается с 11 уровня
+    const pathTab = document.getElementById('nw-tab-path');
+    if (pathTab) pathTab.style.display = (state.level > 10) ? '' : 'none';
+
     renderSidebar();
 }
+
 
 
 function renderSpells() {
@@ -1568,6 +1484,11 @@ function renderSpells() {
     if (activeTab === 'levels') {
         container.classList.add('nw-levels-mode');
         renderLevelsTab(container);
+        return;
+    }
+    if (activeTab === 'path') {
+        container.classList.add('nw-levels-mode');
+        renderPathTab(container);
         return;
     }
     if (activeTab === 'custom') {
@@ -1661,17 +1582,122 @@ function renderLevelsTab(container) {
         </div>
         ${rows}`;
 }
+// ─── ВКЛАДКА «ПУТЬ ВЕДЬМЫ» (уровни 11+) ──────────────────────
+function renderPathTab(container) {
+    const totalXp = state.xp;
+    const curBase = getXpCumulative(state.level);
+    const nextReq = getXpCumulative(state.level + 1);
+    const into = totalXp - curBase;
+    const span = nextReq - curBase;
+    const pct = Math.max(0, Math.min(100, (into / span) * 100));
+
+    // Сколько кастомных слотов открыто и занято
+    const customUsed = Array.isArray(state.customSpells) ? state.customSpells.length : 0;
+    const customMax = Math.max(0, state.level - 9);
+
+    // Строки по уровням выше 10 — «вехи пути»
+    const startFrom = 11;
+    const rows = [];
+    for (let lvl = startFrom; lvl <= state.level; lvl++) {
+        const ld = getLevelDataFor(lvl);
+        const cum = getXpCumulative(lvl);
+        const slots = lvl - 9;
+        rows.push(`
+        <div class="nw-path-row nw-path-done">
+            <div class="nw-path-node">✦</div>
+            <div class="nw-path-body">
+                <div class="nw-path-head">
+                    <b>Уровень ${lvl}</b>
+                    <span class="nw-path-xp">${cum} XP · ${ld.maxMana} маны</span>
+                </div>
+                <div class="nw-path-note">Открыт слот для своего заклинания (всего ${slots})</div>
+            </div>
+        </div>`);
+    }
+
+    // Следующая веха — куда идём
+    const nextLvl = state.level + 1;
+    const nextLd = getLevelDataFor(nextLvl);
+    const nextCum = getXpCumulative(nextLvl);
+    rows.push(`
+        <div class="nw-path-row nw-path-next">
+            <div class="nw-path-node">◇</div>
+            <div class="nw-path-body">
+                <div class="nw-path-head">
+                    <b>Уровень ${nextLvl}</b>
+                    <span class="nw-path-xp">${nextCum} XP · ${nextLd.maxMana} маны</span>
+                </div>
+                <div class="nw-path-note">Ещё <b>${nextReq - totalXp}</b> опыта — и новый слот заклинания</div>
+            </div>
+        </div>`);
+
+    container.innerHTML = `
+        <div class="nw-path-hero">
+            <div class="nw-path-moon">🌙</div>
+            <div class="nw-path-hero-title">Путь Ведьмы</div>
+            <div class="nw-path-hero-sub">За пределами десятого круга магия больше не даёт готовых заклинаний —
+            только силу. Дальше ${name1 || 'ведьма'} творит свои.</div>
+
+            <div class="nw-path-stats">
+                <div class="nw-path-stat">
+                    <span class="nw-path-stat-num">${state.level}</span>
+                    <span class="nw-path-stat-cap">уровень</span>
+                </div>
+                <div class="nw-path-stat">
+                    <span class="nw-path-stat-num">${totalXp}</span>
+                    <span class="nw-path-stat-cap">всего опыта</span>
+                </div>
+                <div class="nw-path-stat">
+                    <span class="nw-path-stat-num">${customUsed}/${customMax}</span>
+                    <span class="nw-path-stat-cap">своих заклинаний</span>
+                </div>
+                <div class="nw-path-stat">
+                    <span class="nw-path-stat-num">${state.maxMana}</span>
+                    <span class="nw-path-stat-cap">потолок маны</span>
+                </div>
+            </div>
+
+            <div class="nw-path-progress-wrap">
+                <div class="nw-path-progress-top">
+                    <span>До ${nextLvl} уровня</span>
+                    <span>${into} / ${span}</span>
+                </div>
+                <div class="nw-progress nw-xp">
+                    <div class="nw-progress-fill" style="width:${pct}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nw-path-timeline-title">Пройденные вехи</div>
+        <div class="nw-path-timeline">
+            ${rows.join('')}
+        </div>
+
+        <div class="nw-xp-info" style="margin-top:8px;">
+            <div class="nw-xp-info-title">Как растёт сила дальше</div>
+            <div class="nw-xp-info-list">
+                Каждый уровень выше 10-го открывает <b>+1 слот</b> для своего заклинания<br>
+                Потолок маны растёт на <b>+15</b> за уровень<br>
+                Каждый следующий уровень требует всё больше опыта<br>
+                Создавай свои заклинания во вкладке <b>✨ Создать</b>
+            </div>
+        </div>`;
+}
 
 function renderLevelRail() {
     const rail = document.getElementById('nw-level-rail');
     if (!rail || !state) return;
 
+    // Показываем 1-10 всегда + все достигнутые уровни выше 10
+    const maxLevel = Math.max(10, state.level);
+
     let html = `<button class="nw-lvl-btn ${activeLevel === 'all' ? 'nw-lvl-btn-active' : ''}" data-lvl="all"><span>Все ур.</span></button>`;
-    for (const ld of LEVEL_DATA) {
-        const locked = ld.level > state.level;
-        const active = activeLevel === ld.level;
-        html += `<button class="nw-lvl-btn ${active ? 'nw-lvl-btn-active' : ''} ${locked ? 'nw-lvl-btn-locked' : ''}" data-lvl="${ld.level}">
-            <span>Уровень ${ld.level}</span>${locked ? '<span class="nw-lvl-lock">🔒</span>' : ''}
+    for (let lvl = 1; lvl <= maxLevel; lvl++) {
+        const locked = lvl > state.level;
+        const active = activeLevel === lvl;
+        const beyond = lvl > 10 ? 'nw-lvl-btn-beyond' : '';
+        html += `<button class="nw-lvl-btn ${active ? 'nw-lvl-btn-active' : ''} ${locked ? 'nw-lvl-btn-locked' : ''} ${beyond}" data-lvl="${lvl}">
+            <span>Уровень ${lvl}${lvl > 10 ? ' ✦' : ''}</span>${locked ? '<span class="nw-lvl-lock">🔒</span>' : ''}
         </button>`;
     }
     rail.innerHTML = html;
@@ -1684,6 +1710,7 @@ function renderLevelRail() {
         });
     });
 }
+
 function renderEffects() {
     if (!state) return;
     const tier = getBloodTier(state.blood);
