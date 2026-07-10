@@ -2780,3 +2780,44 @@
         z-index: 30 !important;
     }
 }
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── МОБИЛЬНЫЙ ФИКС: УРОВНИ СБОКУ + КРУПНЕЕ ЗНАЧКИ ────────── */
+/* ═══════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+    /* рейка уровней — вертикальная колонка слева, как на ПК */
+    #nw-book .nw-left-body {
+        flex-direction: row !important;
+        gap: 8px !important;
+    }
+    #nw-book .nw-level-rail {
+        flex-direction: column !important;
+        width: 84px !important;
+        flex-shrink: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        padding-bottom: 0 !important;
+        padding-right: 4px !important;
+    }
+    #nw-book .nw-lvl-btn {
+        flex-shrink: 0 !important;
+        padding: 6px 7px !important;
+        font-size: 0.68rem !important;
+    }
+
+    /* значки заклинаний крупнее */
+    #nw-book .nw-spells {
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) !important;
+        gap: 12px 8px !important;
+    }
+    #nw-book .nw-cell-frame {
+        width: 72px !important;
+        height: 72px !important;
+    }
+    #nw-book .nw-cell-name {
+        font-size: 0.64rem !important;
+        max-width: 88px !important;
+    }
+    #nw-book .nw-cell-cost {
+        font-size: 0.62rem !important;
+    }
+}
