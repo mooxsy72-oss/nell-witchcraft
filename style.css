@@ -598,14 +598,13 @@
     overflow-y: auto;
     flex: 1;
     min-height: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-    gap: 10px 8px;
-    align-content: start;
+    display: flex;
+    flex-direction: column;
     padding: 4px 6px 4px 2px;
     scrollbar-width: thin;
     scrollbar-color: #3a2060 transparent;
 }
+
 
 .nw-spell {
     background: var(--nw-card-bg);
@@ -2629,5 +2628,88 @@
         opacity: 1;
         background: var(--nw-accent);
         box-shadow: 0 0 8px var(--nw-glow);
+    }
+}
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── ФИНАЛЬНЫЙ ФИКС РАЗМЕРА КНИГИ НА ТЕЛЕФОНЕ ────────────── */
+/* ═══════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+    #nw-book,
+    #nw-book.nw-book-moved {
+        width: 92vw !important;
+        max-width: 92vw !important;
+        height: 68vh !important;
+        max-height: 68vh !important;
+        top: 50% !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: auto !important;
+        transform: translate(-50%, -50%) !important;
+        flex-direction: row !important;
+        border-radius: 14px !important;
+        overflow: hidden !important;
+        z-index: 100000 !important;
+    }
+}
+/* ─── СЕТКА ЗАКЛИНАНИЙ + ЛИСТАЛКА ──────────────────────────── */
+/* На ПК сетка внутри контейнера ведёт себя как раньше */
+.nw-spells-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+    gap: 10px 8px;
+    align-content: start;
+    width: 100%;
+}
+.nw-spell-pager { display: none; }
+
+@media (max-width: 760px) {
+    /* Контейнер списка: сетка + стрелки в столбик */
+    #nw-book .nw-spells {
+        display: flex !important;
+        flex-direction: column;
+        overflow: visible !important;
+        grid-template-columns: none !important;
+    }
+    .nw-spells-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 12px 8px;
+    }
+
+    /* Панель со стрелками листания */
+    .nw-spell-pager {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid var(--nw-border);
+    }
+    .nw-pager-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--nw-tab-bg);
+        border: 1px solid var(--nw-border);
+        color: var(--nw-accent);
+        font-size: 1.4rem;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
+    }
+    .nw-pager-btn:hover:not(:disabled) {
+        background: var(--nw-tab-active);
+        box-shadow: 0 0 10px var(--nw-glow);
+    }
+    .nw-pager-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .nw-pager-info {
+        font-size: 0.85rem;
+        color: var(--nw-text);
+        letter-spacing: 0.05em;
+        min-width: 50px;
+        text-align: center;
     }
 }
