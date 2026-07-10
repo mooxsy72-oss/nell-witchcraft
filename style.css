@@ -2724,7 +2724,7 @@
         right: auto !important;
         bottom: auto !important;
         width: 96vw !important;
-        height: 82dvh !important;
+        height: 76dvh !important;
         transform: none !important;
         border-radius: 14px !important;
         overflow: hidden !important;
@@ -2748,5 +2748,35 @@
     #nw-book .nw-page-left > .nw-page-title,
     #nw-book .nw-page-left > .nw-page-sub {
         padding-left: 0 !important;
+    }
+}
+@media (max-width: 760px) {
+    /* крестик и питание — прижимаем к самой книге, а не к экрану */
+    #nw-book #nw-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+    }
+    #nw-book .nw-power-btn {
+        position: absolute !important;
+        top: 8px !important;
+        right: 52px !important;
+    }
+}
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── МОБИЛЬНЫЙ ФИКС: КРЕСТИК И ТОЧКА ВНУТРИ КНИГИ ─────────── */
+/* ═══════════════════════════════════════════════════════════ */
+@media (max-width: 760px) {
+    #nw-book #nw-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 10px !important;
+        z-index: 30 !important;
+    }
+    #nw-book .nw-power-btn {
+        position: absolute !important;
+        top: 10px !important;
+        right: 52px !important;
+        z-index: 30 !important;
     }
 }
