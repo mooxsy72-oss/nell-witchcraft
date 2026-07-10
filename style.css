@@ -2714,8 +2714,55 @@
         padding-left: 0 !important;
     }
 }
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── МОБИЛЬНАЯ КНИГА: КОМПАКТНАЯ + ПО ЦЕНТРУ ──────────────── */
+/* ═══════════════════════════════════════════════════════════ */
 @media (max-width: 760px) {
+    /* книга по центру экрана, компактнее по высоте */
+    #nw-book {
+        top: 50% !important;
+        left: 50% !important;
+        bottom: auto !important;
+        right: auto !important;
+        transform: translate(-50%, -50%) !important;
+        width: 96vw !important;
+        height: 82dvh !important;
+        border-radius: 14px !important;
+    }
+
+    /* уменьшаем отступ сверху у страниц (меньше пустоты) */
+    #nw-book .nw-page-left,
+    #nw-book .nw-page-right {
+        padding-top: 16px !important;
+        padding-bottom: 16px !important;
+    }
+
+    /* прижимаем заголовок к верху книги */
     #nw-book .nw-page-title {
-        color: red !important;
+        margin-top: 0 !important;
+        margin-bottom: 3px !important;
+        font-size: 0.8rem !important;
+    }
+    #nw-book .nw-page-sub {
+        margin-top: 0 !important;
+        margin-bottom: 8px !important;
+    }
+    #nw-book .nw-page-left > .nw-page-title,
+    #nw-book .nw-page-left > .nw-page-sub {
+        padding-left: 0 !important;
     }
 }
+@media (max-width: 760px) {
+    /* крестик и питание — прижимаем к самой книге, а не к экрану */
+    #nw-book #nw-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+    }
+    #nw-book .nw-power-btn {
+        position: absolute !important;
+        top: 8px !important;
+        right: 52px !important;
+    }
+}
+
