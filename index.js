@@ -966,7 +966,7 @@ function buildPanelSkeleton() {
         <div id="nw-book" class="nw-hidden" role="dialog" aria-label="Гримуар">
             <button id="nw-power-btn" class="nw-power-btn" title="Расширение активно (нажми чтобы отключить)"><span id="nw-power-dot" class="nw-power-dot"></span></button>
             <button id="nw-close" aria-label="Закрыть">✕</button>
-            <div id="nw-drag-handle" title="Перетащить книгу">📌</div>
+            <div id="nw-drag-handle" title="Перетащить книгу">⁙</div>
 
 
 <div class="nw-page nw-page-left">
@@ -2095,9 +2095,8 @@ function injectSettingsPanel() {
 
                         <hr class="nw-set-divider">
                         <div class="nw-set-row">
-                            <label for="nw-chk-enabled">Расширение активно:</label>
+                            <label for="nw-chk-enabled">Включить/отключить расширение:</label>
                             <input type="checkbox" id="nw-chk-enabled" checked>
-                            <span style="font-size:0.78rem;color:#888;">Снять галку — полностью отключить, токены не расходуются</span>
                         </div>
 
                         <div class="nw-set-row">
@@ -2113,7 +2112,6 @@ function injectSettingsPanel() {
                         <div class="nw-set-row">
                             <label for="nw-chk-sidebar">Боковые кнопки каста:</label>
                             <input type="checkbox" id="nw-chk-sidebar" checked>
-                            <span style="font-size:0.78rem;color:#888;">Панель с забинженными заклинаниями у края чата</span>
                         </div>
 
                         <div class="nw-set-row">
@@ -2132,7 +2130,6 @@ function injectSettingsPanel() {
                                 <option value="women">Женщин</option>
                                 <option value="all">Всех</option>
                             </select>
-                            <span style="font-size:0.78rem;color:#888;">Кого затрагивает ведьмовская кровь в промпте ИИ</span>
                         </div>
 
                         <hr class="nw-set-divider">
