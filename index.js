@@ -967,11 +967,6 @@ function buildPanelSkeleton() {
             <button id="nw-power-btn" class="nw-power-btn" title="Расширение активно (нажми чтобы отключить)"><span id="nw-power-dot" class="nw-power-dot"></span></button>
             <button id="nw-close" aria-label="Закрыть">✕</button>
             <div id="nw-drag-handle" title="Перетащить книгу">📌</div>
-            <div id="nw-mobile-tabs">
-                <button class="nw-mtab nw-mtab-active" data-page="right">✨ Мана</button>
-                <button class="nw-mtab" data-page="left">📖 Заклинания</button>
-            </div>
-
 
 
 <div class="nw-page nw-page-left">
@@ -1074,8 +1069,13 @@ function buildPanelSkeleton() {
                     </div>
                 </div>
             </div>
+            <div id="nw-mobile-dots">
+                <span class="nw-dot nw-dot-active" data-page="right"></span>
+                <span class="nw-dot" data-page="left"></span>
+            </div>
         </div>
     `;
+
 
     root.dataset.nwTheme = getTheme();
     document.body.appendChild(root);
@@ -1126,22 +1126,47 @@ if (sendBut) {
         });
     });
 
-    // Мобильный переключатель страниц (Заклинания / Сила)
-    document.querySelectorAll('.nw-mtab').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const page = btn.dataset.page;
-            document.querySelectorAll('.nw-mtab').forEach(b => b.classList.remove('nw-mtab-active'));
-            btn.classList.add('nw-mtab-active');
-            const book = document.getElementById('nw-book');
-            if (book) book.dataset.mobilePage = page;
+    // Мобильное переключение страниц (точки + свайп)
+    const bookEl = document.getElementById('nw-book');
+    bookEl.dataset.mobilePage = 'right';
+
+    function switchMobilePage(page) {
+        if (page !== 'left' && page !== 'right') return;
+        bookEl.dataset.mobilePage = page;
+        document.querySelectorAll('#nw-mobile-dots .nw-dot').forEach(d => {
+            d.classList.toggle('nw-dot-active', d.dataset.page === page);
         });
+    }
+
+    // Клик по точкам
+    document.querySelectorAll('#nw-mobile-dots .nw-dot').forEach(dot => {
+        dot.addEventListener('click', () => switchMobilePage(dot.dataset.page));
     });
 
+    // Свайп влево/вправо по книге
+    let swipeStartX = 0, swipeStartY = 0, swiping = false;
+    bookEl.addEventListener('touchstart', (e) => {
+        if (window.innerWidth > 760) return;
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        swiping = true;
+    }, { passive: true });
+    bookEl.addEventListener('touchend', (e) => {
+        if (!swiping || window.innerWidth > 760) return;
+        swiping = false;
+        const dx = e.changedTouches[0].clientX - swipeStartX;
+        const dy = e.changedTouches[0].clientY - swipeStartY;
+        // свайп считается только если горизонтальный сдвиг заметно больше вертикального
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx < 0) switchMobilePage('left');   // свайп влево → заклинания
+            else switchMobilePage('right');          // свайп вправо → сила
+        }
+    }, { passive: true });
+
     // Перетаскивание — только за ручку в правом нижнем углу
-    const bookEl = document.getElementById('nw-book');
     makeDraggable(bookEl, document.getElementById('nw-drag-handle'));
-    if (bookEl) bookEl.dataset.mobilePage = 'right';
 }
+
 
 
 
