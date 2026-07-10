@@ -1,0 +1,12 @@
+{
+    "display_name": "Nell's Witchcraft",
+    "loading_order": 20,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Mooxsy",
+    "version": "1.0.0",
+    "homePage": "",
+    "auto_update": false
+}
