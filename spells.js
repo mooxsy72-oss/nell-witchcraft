@@ -1009,13 +1009,25 @@ export function getXpCumulative(level) {
 
 
 // ─── XP REWARDS ───────────────────────────────────────────────
+// Многие награды теперь зависят от уровня ведьмы: чем выше уровень,
+// тем больше XP нужно на следующий, поэтому и награды растут вместе с ним.
 export const XP_REWARDS = {
-    castSuccess:      (spellCost) => Math.floor(spellCost / 2),
-    castFirstTime:    15,
-    castFail:         5,   // attempted but couldn't cast (no mana / not learned)
-    eventImportant:   20,
-    eventCritical:    50,
+    // Успешный каст: половина стоимости + небольшой бонус за уровень
+    castSuccess:      (spellCost, level = 1) => Math.floor(spellCost / 2) + (level - 1) * 2,
+
+    // Первый каст нового заклинания: 15 базово, +5 за каждый уровень
+    castFirstTime:    (level = 1) => 15 + (level - 1) * 5,
+
+    // Сорвавшийся / не удавшийся каст
+    castFail:         (level = 1) => 5 + (level - 1) * 2,
+
+    // События сюжета — сильно зависят от уровня, чтобы прокачка на высоких
+    // уровнях шла в основном за счёт значимого отыгрыша, а не спама заклинаний.
+    eventNormal:      (level = 1) => 10 + (level - 1) * 4,   // обычное событие
+    eventImportant:   (level = 1) => 30 + (level - 1) * 10,  // важное событие
+    eventCritical:    (level = 1) => 70 + (level - 1) * 20,  // критическое событие
 };
+
 
 // ─── BLOOD GAIN ───────────────────────────────────────────────
 export const BLOOD_GAIN = {
