@@ -140,6 +140,27 @@ function defaultState() {
 // ─── STATE ACCESS (per-chat, stored in chat_metadata) ─────────
 let state = null;
 
+// Когда true — addXp/addBlood/level-up считаются молча (без всплывашек).
+// Накопленные уведомления показываются позже, после ответа бота.
+let silentMode = false;
+let pendingSilentNotices = []; // [{text, type, duration}]
+
+function queueNotice(text, type = 'info', duration = 4000) {
+    if (silentMode) {
+        pendingSilentNotices.push({ text, type, duration });
+    } else {
+        showNotify(text, type, duration);
+    }
+}
+
+// Показать все накопленные «тихие» уведомления (вызывается после ответа бота)
+function flushSilentNotices() {
+    for (const n of pendingSilentNotices) {
+        showNotify(n.text, n.type, n.duration);
+    }
+    pendingSilentNotices = [];
+}
+
 function loadState() {
     if (!chat_metadata[META_KEY]) {
         chat_metadata[META_KEY] = defaultState();
@@ -153,11 +174,13 @@ function loadState() {
     recalcDerived();
 }
 
-function saveState() {
+function saveState({ silentUI = false } = {}) {
     chat_metadata[META_KEY] = state;
     saveChatDebounced();
-    renderPanel();
-    updateSettingsDisplay();
+    if (!silentUI) {
+        renderPanel();
+        updateSettingsDisplay();
+    }
 }
 
 
@@ -198,7 +221,7 @@ function getBloodTier(value) {
 function addXp(amount) {
     if (amount <= 0) return;
     state.xp += amount;
-    showNotify(`+${amount} опыта`, 'xp', 2500);
+    queueNotice(`+${amount} опыта`, 'xp', 2500);
     let leveledUp = false;
     // No hard cap — levels grow infinitely beyond 10
     while (true) {
@@ -215,19 +238,19 @@ function addXp(amount) {
         if (state.level <= 10) {
             const newSpells = SPELL_LIST.filter(s => s.level === state.level);
             if (newSpells.length > 0) {
-                showNotify(
+                queueNotice(
                     `${lvlName} достигла ${state.level} уровня — новые заклинания: ${newSpells.map(s => s.name).join(', ')}`,
                     'level', 7000
                 );
             } else {
-                showNotify(
+                queueNotice(
                     `${lvlName} достигла ${state.level} уровня!`,
                     'level', 5000
                 );
             }
         } else {
             const slots = state.level - 9;
-            showNotify(
+            queueNotice(
                 `${lvlName} достигла ${state.level} уровня! Слотов для заклинаний: ${slots}`,
                 'level', 6000
             );
@@ -235,19 +258,15 @@ function addXp(amount) {
     }
 }
 
-
-
-
 function addBlood(amount) {
     if (amount <= 0) return;
     const before = getBloodTier(state.blood);
     state.blood = Math.min(100, state.blood + amount);
     const after = getBloodTier(state.blood);
     if (after.labelRu !== before.labelRu) {
-        showNotify(`Ведьмовская кровь: ${after.labelRu}`, 'blood', 5500);
+        queueNotice(`Ведьмовская кровь: ${after.labelRu}`, 'blood', 5500);
     }
 }
-
 
 // ─── MANA ─────────────────────────────────────────────────────
 function spendMana(amount) {
@@ -299,10 +318,22 @@ function findLastHoraeTime(scanDepth = 15) {
     return null;
 }
 
+// Определяем, активен ли Horae — ищем его теги в последних сообщениях чата
+function isHoraeActive(scanDepth = 12) {
+    const startIdx = Math.max(0, chat.length - scanDepth);
+    for (let i = chat.length - 1; i >= startIdx; i--) {
+        const mes = chat[i]?.mes || '';
+        if (/<horae>|<horaeevent>/i.test(mes)) return true;
+    }
+    return false;
+}
+
 // ─── МЕХАНИЧЕСКИЙ ТЕГ ОТ ИИ: [nw: tp=2.5 | cond=nervous] ─────
-const NW_TAG_RE = /\[nw:\s*([^\]]+)\]/i;
+const NW_TAG_RE = /<!--\s*NW\s+([^>]+?)\s*-->/i;
 const RP_DATE_RE = /\[RP_DATE:\s*(\d{1,2})\.(\d{1,2})\.(\d{1,4})\]/i;
 const VALID_CONDITIONS = ['calm', 'tense', 'nervous', 'exhausted', 'hurt'];
+
+const VALID_EVENT_TIERS = ['normal', 'important', 'critical'];
 
 function parseNwTag(text) {
     if (!text) return null;
@@ -310,7 +341,7 @@ function parseNwTag(text) {
     if (!m) return null;
     console.log('[NW] Сырой тег:', m[0]);
     const inner = m[1];
-    const result = { tp: null, cond: null, body: null };
+    const result = { tp: null, cond: null, body: null, event: null, mana: null };
 
     const tpMatch = inner.match(/tp\s*[=:]\s*([\d.,]+)/i);
     if (tpMatch) {
@@ -325,8 +356,18 @@ function parseNwTag(text) {
     if (bodyMatch && VALID_BODY_STATES.includes(bodyMatch[1].toLowerCase())) {
         result.body = bodyMatch[1].toLowerCase();
     }
+    const eventMatch = inner.match(/event\s*[=:]\s*([a-z]+)/i);
+    if (eventMatch && VALID_EVENT_TIERS.includes(eventMatch[1].toLowerCase())) {
+        result.event = eventMatch[1].toLowerCase();
+    }
+    const manaMatch = inner.match(/mana\s*[=:]\s*(\d{1,3})/i);
+    if (manaMatch) {
+        const num = parseInt(manaMatch[1], 10);
+        if (!isNaN(num)) result.mana = Math.max(0, Math.min(num, 300));
+    }
     return result;
 }
+
 
 
 function parseRpDate(text) {
@@ -351,16 +392,37 @@ function processManaRegen(aiMessageText, msg, messageId) {
         state.bodyState = tag.body;
     }
 
+    // ── Вариативный расход маны (Вариант A: mana=X — итоговый полный расход) ──
+    // Применяем ТОЛЬКО если в этот ход был реальный каст (pendingCastResult).
+    if (tag?.mana != null && pendingCastResult) {
+        const templateCost = pendingCastResult.spellCost ?? pendingCastResult.manaSpent;
+        const realCost = tag.mana;
+        const diff = realCost - templateCost; // >0 = досписать, <0 = вернуть
+        if (diff !== 0) {
+            if (diff > 0) {
+                spendMana(diff);
+            } else {
+                // вернуть излишек, не превышая maxMana
+                state.mana = Math.min(state.maxMana, state.mana - diff);
+            }
+            pendingCastResult.manaSpent = realCost;   // покажем в уведомлении реальный расход
+            pendingCastResult.manaAdjusted = true;    // пометка, что бот скорректировал
+            console.log(`[NW] Корректировка маны: шаблон=${templateCost}, реально=${realCost}, дельта=${diff}`);
+        }
+    }
+
     const manaBefore = state.mana;
 
     let hoursFromTag = (tag?.tp != null) ? tag.tp : 0;
 
     let hoursFromDate = 0;
-    const dateNow = parseRpDate(aiMessageText) || parseHoraeTime(aiMessageText);
+    // Приоритет времени Horae, затем RP_DATE, затем наш tp
+    const dateNow = parseHoraeTime(aiMessageText) || parseRpDate(aiMessageText);
     if (dateNow && state.lastGameTime) {
         const diffMinutes = dateNow.totalMinutes - state.lastGameTime;
         if (diffMinutes > 0) hoursFromDate = diffMinutes / 60;
     }
+
 
     const hours = Math.max(hoursFromTag, hoursFromDate);
     console.log(`[NW] Часы: тег=${hoursFromTag}, дата=${hoursFromDate.toFixed(1)}, применено=${hours.toFixed(1)}`);
@@ -375,6 +437,7 @@ function processManaRegen(aiMessageText, msg, messageId) {
 }
 
 
+
 // ─── СИСТЕМА ЭФФЕКТОВ ────────────────────────────────────────
 function applyEffect(effect, silent = false) {
     if (!Array.isArray(state.activeEffects)) state.activeEffects = [];
@@ -386,7 +449,7 @@ function applyEffect(effect, silent = false) {
     }
     if (!silent) {
         const kind = effect.type === 'buff' ? 'Баф' : 'Дебаф';
-        showNotify(`${kind}: ${effect.nameRu}`, effect.type === 'buff' ? 'success' : 'warning', 4000);
+        queueNotice(`${kind}: ${effect.nameRu}`, effect.type === 'buff' ? 'success' : 'warning', 4000);
     }
 }
 
@@ -404,6 +467,7 @@ function applySpellSuccessEffect(spell, silent = false) {
         remainingMinutes: eff.durationMinutes,
     }, silent);
 }
+
 
 function applyBacklash(spell, silent = true) {
     const tier = getBacklashTier(spell.cost);
@@ -521,12 +585,13 @@ function validateAndCast(spell) {
 
 function processCastSuccess(spell) {
     spendMana(spell.cost);
+    const lvl = state.level;
     const isFirstTime = !state.castHistory.includes(spell.id);
     if (isFirstTime) {
         state.castHistory.push(spell.id);
-        addXp(XP_REWARDS.castFirstTime);
+        addXp(XP_REWARDS.castFirstTime(lvl));
     }
-    addXp(XP_REWARDS.castSuccess(spell.cost));
+    addXp(XP_REWARDS.castSuccess(spell.cost, lvl));
 
     if (spell.school === 'blood') {
         addBlood(spell.ritual ? BLOOD_GAIN.ritualBlood : BLOOD_GAIN.castBlood);
@@ -613,6 +678,8 @@ function resolveCast(spell) {
             name: spell.name,
             success: true,
             manaSpent: spell.cost,
+            spellCost: spell.cost,          // шаблонная стоимость (для корректировки)
+            spellId: spell.id,              // чтобы знать, чью ману корректировать
             effectName: SPELL_EFFECTS[spell.id]?.nameRu || null,
         };
         return `${name1 || 'She'} casts "${spell.nameEn}" (${spell.school} school). The cast SUCCEEDS COMPLETELY — mechanics have already resolved this as a full, clean success. Do NOT describe the spell faltering, failing, weakening, backfiring, or partially working. Do NOT describe pallor, tremor, cold sweat, blood, or magical strain — those belong to failures only. Show the external, visible effect landing exactly as intended and how the world and targets react to it. A brief focused breath as she channels is fine; weakness is not. No dialogue or thoughts in her voice. USE: ${spell.useEn}`;
@@ -620,12 +687,14 @@ function resolveCast(spell) {
         const before = state.mana;
         spendMana(Math.ceil(spell.cost / 2));
         const spent = before - state.mana;
-        addXp(XP_REWARDS.castFail);
+        addXp(XP_REWARDS.castFail(state.level));
         const tier = applyBacklash(spell); // тихо
         pendingCastResult = {
             name: spell.name,
             success: false,
             manaSpent: spent,
+            spellCost: spent,               // при провале базой считаем реально сгоревшее
+            spellId: spell.id,
             backlashName: tier.nameRu,
             backlashMod: tier.modifier,
         };
@@ -633,12 +702,14 @@ function resolveCast(spell) {
     }
 }
 
+
 // объявляем — используется в buildSystemPrompt (оставлено для совместимости)
 let pendingCastInstruction = null;
 
 
 // ─── PROMPT INJECTION ─────────────────────────────────────────
 function buildSystemPrompt(failInstructions = []) {
+    const horaeOn = isHoraeActive();
     const bloodTier = getBloodTier(state.blood);
     const activeName = name1 || 'the witch';
 
@@ -650,7 +721,6 @@ function buildSystemPrompt(failInstructions = []) {
         .map(s => `- ${s.nameEn} [${s.school}, ${s.cost}m]: ${s.useEn}`)
         .join('\n');
 
-
     const bodyLabel = BODY_LABELS[state.bodyState]?.en || state.bodyState;
 
     const effectsBlock = (Array.isArray(state.activeEffects) && state.activeEffects.length)
@@ -659,6 +729,14 @@ function buildSystemPrompt(failInstructions = []) {
             return `- [${kind}] ${e.nameEn} — ~${formatRemaining(e.remainingMinutes)} left`;
         }).join('\n')
         : '(none)';
+
+    // ── Строки механического тега (зависят от Horae) ──
+    const tpField = horaeOn ? '' : 'tp=VALUE; ';
+    const tpMeaning = horaeOn ? '' :
+        '  tp    = a NUMBER: in-world hours elapsed since the previous message (sleep/travel/skips included; a night = 8, a short scene = 0.5). ALWAYS include.\n';
+    const tpEx1 = horaeOn ? '' : '; tp=0.5';
+    const tpEx2 = horaeOn ? '' : '; tp=8';
+    const tpEx3 = horaeOn ? '' : '; tp=0.5';
 
     let prompt = `[${activeName}'S WITCH STATE — live context. Weave naturally, never quote numbers verbatim.]
 Level: ${state.level}/10 | Mana: ${state.mana}/${state.maxMana} | Witch Blood: ${state.blood}/100
@@ -691,12 +769,23 @@ RULES:
 - Any character able to sense magic (mages, witches, spirits, mystical beasts, magically-aware teachers) perceives ${activeName}'s mana ACCURATELY. Her reserve is currently ${state.mana}/${state.maxMana} (${Math.round((state.mana / state.maxMana) * 100)}% full). If such a character senses it, comments on it, or teaches her about her own energy, their words MUST match this reading — never claim she is empty when she has reserves, nor full when she is drained. Ordinary people with no magical sense perceive none of this.
 
 
-MECHANICAL (MANDATORY in EVERY reply, no exceptions): at the very end of your reply, on its own line, append this HTML comment with values filled in:
-<!-- [nw: tp=X | cond=Y | body=Z] -->
-  X = total in-world hours elapsed since the END of the previous message to the end of YOUR reply. INCLUDE offscreen time: sleep, unconsciousness, travel, "days later" skips. Examples: woke after two days unconscious = 48; a night passed = 8; continuous scene = 0.5. X is objective clock time — her being tired, hurt or drained NEVER changes X.
-  Y = her current emotional/immediate state, ONE word: calm / tense / nervous / exhausted / hurt.
-  Z = her long-term body state, ONE word from: normal / menses / pms / ovulation / pregnant_early / pregnant_late / postpartum. ONLY include body=Z when the body state has actually changed this turn. If nothing changed, omit "| body=Z" entirely and write only <!-- [nw: tp=X | cond=Y] -->.
-  HTML comments are invisible to the reader. Never skip this line.`;
+MECHANICAL — REQUIRED at the very END of every reply. On its own line, append ONE line in EXACTLY this format (this is a separate, simple line — do NOT merge it with any other system's tags):
+<!-- NW cond=VALUE; ${tpField}mana=VALUE; body=VALUE; event=VALUE -->
+
+Fill in REAL values. Include ONLY the fields that apply. cond is ALWAYS included. Remove any field you are not using (do not leave empty ones, do not write the word VALUE).
+
+Field meanings:
+  cond  = ONE word: her current state — calm / tense / nervous / exhausted / hurt. ALWAYS include.
+${tpMeaning}  mana  = a NUMBER. Include ONLY if a spell was cast THIS turn AND it cost noticeably more or less than usual (forced through resistance, sustained long, fought a ward, or unusually easy). It is the total mana the spell ended up costing. Otherwise OMIT.
+  body  = ONE word (normal / menses / pms / ovulation / pregnant_early / pregnant_late / postpartum). Include ONLY when her body state actually changed this turn. Otherwise OMIT.
+  event = normal / important / critical. Include ONLY when something narratively significant happened this turn. Otherwise OMIT.
+
+Correct examples (yours will differ — use the truth of THIS turn):
+<!-- NW cond=calm${tpEx1} -->
+<!-- NW cond=hurt${tpEx2}; body=menses; mana=30 -->
+<!-- NW cond=tense${tpEx3}; event=important -->
+
+This line is an HTML comment, invisible to the reader. Never skip it, never leave placeholder words like VALUE in it.`;
 
     const allInstructions = [...failInstructions];
     if (pendingCastInstruction) allInstructions.push(pendingCastInstruction);
@@ -727,12 +816,55 @@ function injectPrompt(failInstructions = []) {
 }
 
 
-// ─── HORAE EVENT XP ───────────────────────────────────────────
-function checkHoraeEvents(text) {
-    if (!text) return;
-    if (/importance:\s*critical/i.test(text)) addXp(XP_REWARDS.eventCritical);
-    else if (/importance:\s*important/i.test(text)) addXp(XP_REWARDS.eventImportant);
+// ─── EVENT XP (работает С Horae и БЕЗ него) ──────────────────
+const HORAE_BLOCK_RE = /<horaeevent>([\s\S]*?)<\/horaeevent>/i;
+const HORAE_EVENT_RE = /event:\s*(normal|important|critical)\s*\|/gi;
+
+// Достаём важность события из блока Horae (если Horae установлен)
+function detectHoraeEventTier(text) {
+    if (!text) return null;
+    // сначала вырезаем сам блок <horaeevent>
+    const block = text.match(HORAE_BLOCK_RE);
+    if (!block) return null; // нет блока Horae — значит и события Horae нет
+    const inner = block[1];
+
+    HORAE_EVENT_RE.lastIndex = 0;
+    let match;
+    let bestTier = null;
+    while ((match = HORAE_EVENT_RE.exec(inner)) !== null) {
+        const tier = match[1].toLowerCase();
+        if (tier === 'critical') return 'critical';
+        if (tier === 'important' && bestTier !== 'critical') bestTier = 'important';
+        if (tier === 'normal' && !bestTier) bestTier = 'normal';
+    }
+    return bestTier;
 }
+
+
+// Начисляем опыт за событие. tag — результат parseNwTag (может быть null).
+function checkHoraeEvents(text, tag = null) {
+    if (!text) return;
+
+    // 1) Пробуем Horae (точнее — это его специализация)
+    let tier = detectHoraeEventTier(text);
+
+    // 2) Если Horae не дал события — берём наш тег [nw: ... event=...]
+    if (!tier && tag?.event) {
+        tier = tag.event;
+    }
+
+    if (!tier) return;
+
+    const lvl = state.level;
+    if (tier === 'critical') {
+        addXp(XP_REWARDS.eventCritical(lvl));
+    } else if (tier === 'important') {
+        addXp(XP_REWARDS.eventImportant(lvl));
+    } else {
+        addXp(XP_REWARDS.eventNormal(lvl));
+    }
+}
+
 
 // ─── ROMANCE DETECTION ────────────────────────────────────────
 // Loose heuristic — quiet, no interruptions to flow
@@ -768,11 +900,16 @@ async function onMessageSent(messageId) {
 
     pendingFailInstructions = [];
 
+    // Включаем тихий режим: все начисления считаются молча,
+    // уведомления и обновление колбы покажутся ПОСЛЕ ответа бота.
+    silentMode = true;
+
     // 1) Приоритет: каст из панели (queuedManualCast)
     if (queuedManualCast) {
         const instr = resolveQueuedCast();
         if (instr) pendingFailInstructions.push(instr);
-        saveState();
+        silentMode = false;
+        saveState({ silentUI: true });
         return; // текстовые касты в этом же сообщении игнорируем
     }
 
@@ -793,14 +930,16 @@ async function onMessageSent(messageId) {
             const instr = resolveCast(spell);
             pendingFailInstructions.push(instr);
         } else {
-            addXp(XP_REWARDS.castFail);
+            addXp(XP_REWARDS.castFail(state.level));
             pendingFailInstructions.push(check.promptInstruction);
         }
         break; // только первое совпадение
     }
 
-    saveState();
+    silentMode = false;
+    saveState({ silentUI: true }); // сохранить, но НЕ перерисовывать колбу
 }
+
 
 
 
@@ -812,22 +951,24 @@ async function onMessageReceived(messageId) {
     if (!msg || msg.is_user) return;
 
     processManaRegen(msg.mes, msg, messageId);
-    checkHoraeEvents(msg.mes);
+    checkHoraeEvents(msg.mes, parseNwTag(msg.mes));
     checkRomanceBlood(msg.mes);
     pendingFailInstructions = [];
 
-    // Раскрываем исход каста
+    // Сначала — исход каста (главное уведомление идёт первым)
     if (pendingCastResult) {
         const r = pendingCastResult;
         if (r.success) {
             const extra = r.effectName ? ` · эффект: ${r.effectName}` : '';
+            const adj = r.manaAdjusted ? ' (расход изменён сюжетом)' : '';
             showNotify(
-                `«${r.name}» — удалось! Потрачено ${r.manaSpent} маны${extra}`,
+                `«${r.name}» — удалось! Потрачено ${r.manaSpent} маны${adj}${extra}`,
                 'success', 5500
             );
         } else {
+            const adj = r.manaAdjusted ? ' (расход изменён сюжетом)' : '';
             showNotify(
-                `«${r.name}» — сорвалось! Сгорело ${r.manaSpent} маны · ${r.backlashName}${r.backlashMod ? ` (${r.backlashMod}% к кастам)` : ''}`,
+                `«${r.name}» — сорвалось! Сгорело ${r.manaSpent} маны${adj} · ${r.backlashName}${r.backlashMod ? ` (${r.backlashMod}% к кастам)` : ''}`,
                 'error', 6500
             );
         }
@@ -835,11 +976,13 @@ async function onMessageReceived(messageId) {
         pendingCastInstruction = null;
     }
 
+    // Теперь показываем накопленные «тихие» уведомления (опыт, уровень, кровь, эффекты)
+    flushSilentNotices();
+
     castLocked = false;
     queuedManualCast = null;
-    saveState();
+    saveState(); // здесь колбу МОЖНО перерисовать — ответ бота уже пришёл
 }
-
 
 
 // CHAT_CHANGED — reload state for the new chat
@@ -1614,15 +1757,17 @@ function renderLevelsTab(container) {
         </div>`;
     }).join('');
 
+    const lvl = state.level;
     container.innerHTML = `
         <div class="nw-xp-info">
-            <div class="nw-xp-info-title">Как копится опыт</div>
+            <div class="nw-xp-info-title">Как копится опыт (растёт с уровнем)</div>
             <div class="nw-xp-info-list">
-                Успешный каст — половина стоимости заклинания в XP<br>
-                Первый каст нового заклинания — +${XP_REWARDS.castFirstTime} XP<br>
-                Сорвавшийся каст — +${XP_REWARDS.castFail} XP<br>
-                Важное событие сюжета — +${XP_REWARDS.eventImportant} XP<br>
-                Критическое событие сюжета — +${XP_REWARDS.eventCritical} XP
+                Успешный каст — половина стоимости заклинания + бонус за уровень<br>
+                Первый каст нового заклинания — +${XP_REWARDS.castFirstTime(lvl)} XP<br>
+                Сорвавшийся каст — +${XP_REWARDS.castFail(lvl)} XP<br>
+                Обычное событие сюжета — +${XP_REWARDS.eventNormal(lvl)} XP<br>
+                Важное событие сюжета — +${XP_REWARDS.eventImportant(lvl)} XP<br>
+                Критическое событие сюжета — +${XP_REWARDS.eventCritical(lvl)} XP
             </div>
         </div>
         ${rows}`;
