@@ -730,7 +730,6 @@ function buildSystemPrompt(failInstructions = []) {
         }).join('\n')
         : '(none)';
 
-    // ── Строки механического тега (зависят от Horae) ──
     const tpField = horaeOn ? '' : 'tp=VALUE; ';
     const tpMeaning = horaeOn ? '' :
         '  tp    = a NUMBER: in-world hours elapsed since the previous message (sleep/travel/skips included; a night = 8, a short scene = 0.5). ALWAYS include.\n';
@@ -778,7 +777,9 @@ Field meanings:
   cond  = ONE word: her current state — calm / tense / nervous / exhausted / hurt. ALWAYS include.
 ${tpMeaning}  mana  = a NUMBER. Include ONLY if a spell was cast THIS turn AND it cost noticeably more or less than usual (forced through resistance, sustained long, fought a ward, or unusually easy). It is the total mana the spell ended up costing. Otherwise OMIT.
   body  = ONE word (normal / menses / pms / ovulation / pregnant_early / pregnant_late / postpartum). Include ONLY when her body state actually changed this turn. Otherwise OMIT.
-  event = normal / important / critical. Include ONLY when something narratively significant happened this turn. Otherwise OMIT.
+  event = important / critical. Include ONLY for MAJOR narrative turning points: a revelation that changes everything, an irreversible choice, a death, a betrayal, a first kiss, a catastrophic failure, a power shift. Do NOT include for routine scenes, normal dialogue, travel, or anything that could happen in any chapter without consequence. Most messages should NOT have this field at all. Overusing it is a mistake — treat it as rare.
+    · important = a significant scene beat that will shape the story going forward
+    · critical  = a once-in-a-story moment: something irreversible, catastrophic, or transformative
 
 Correct examples (yours will differ — use the truth of THIS turn):
 <!-- NW cond=calm${tpEx1} -->
@@ -796,6 +797,7 @@ This line is an HTML comment, invisible to the reader. Never skip it, never leav
 
     return prompt;
 }
+
 
 
 
@@ -823,9 +825,8 @@ const HORAE_EVENT_RE = /event:\s*(normal|important|critical)\s*\|/gi;
 // Достаём важность события из блока Horae (если Horae установлен)
 function detectHoraeEventTier(text) {
     if (!text) return null;
-    // сначала вырезаем сам блок <horaeevent>
     const block = text.match(HORAE_BLOCK_RE);
-    if (!block) return null; // нет блока Horae — значит и события Horae нет
+    if (!block) return null;
     const inner = block[1];
 
     HORAE_EVENT_RE.lastIndex = 0;
@@ -835,21 +836,22 @@ function detectHoraeEventTier(text) {
         const tier = match[1].toLowerCase();
         if (tier === 'critical') return 'critical';
         if (tier === 'important' && bestTier !== 'critical') bestTier = 'important';
-        if (tier === 'normal' && !bestTier) bestTier = 'normal';
+        // 'normal' намеренно игнорируется — слишком частый тег
     }
     return bestTier;
 }
 
-
-// Начисляем опыт за событие. tag — результат parseNwTag (может быть null).
+// Начисляем опыт ТОЛЬКО за important и critical события.
+// normal — слишком часто проставляется ИИ автоматически, XP за него не даём.
 function checkHoraeEvents(text, tag = null) {
     if (!text) return;
 
-    // 1) Пробуем Horae (точнее — это его специализация)
+    // 1) Пробуем Horae
     let tier = detectHoraeEventTier(text);
 
-    // 2) Если Horae не дал события — берём наш тег [nw: ... event=...]
-    if (!tier && tag?.event) {
+    // 2) Если Horae не дал события — берём наш тег <!-- NW ... event=... -->
+    //    Но и здесь normal игнорируем
+    if (!tier && tag?.event && tag.event !== 'normal') {
         tier = tag.event;
     }
 
@@ -858,12 +860,16 @@ function checkHoraeEvents(text, tag = null) {
     const lvl = state.level;
     if (tier === 'critical') {
         addXp(XP_REWARDS.eventCritical(lvl));
+        queueNotice('Критическое событие! Опыт начислен', 'xp', 3500);
     } else if (tier === 'important') {
         addXp(XP_REWARDS.eventImportant(lvl));
-    } else {
-        addXp(XP_REWARDS.eventNormal(lvl));
+        queueNotice('Важное событие! Опыт начислен', 'xp', 3000);
     }
+    // tier === 'normal' → XP не начисляется
 }
+
+
+// ─── ROMANCE DETECTION ────────────────────────────────────────
 
 
 // ─── ROMANCE DETECTION ────────────────────────────────────────
