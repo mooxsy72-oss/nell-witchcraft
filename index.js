@@ -392,22 +392,27 @@ function processManaRegen(aiMessageText, msg, messageId) {
         state.bodyState = tag.body;
     }
 
-    // ── Вариативный расход маны (Вариант A: mana=X — итоговый полный расход) ──
-    // Применяем ТОЛЬКО если в этот ход был реальный каст (pendingCastResult).
+    // ── Вариативный расход маны (mana=X — итоговый полный расход) ──
+    // Применяем ТОЛЬКО если в этот ход был реальный каст.
+    // Защита: игнорируем явно неадекватные значения mana от ИИ
+    // (0 или больше тройной стоимости), чтобы случайное число
+    // не «вернуло» и не «съело» ману сверх меры.
     if (tag?.mana != null && pendingCastResult) {
         const templateCost = pendingCastResult.spellCost ?? pendingCastResult.manaSpent;
         const realCost = tag.mana;
-        const diff = realCost - templateCost; // >0 = досписать, <0 = вернуть
-        if (diff !== 0) {
+        const sane = realCost > 0 && realCost <= templateCost * 3;
+        const diff = realCost - templateCost;
+        if (sane && diff !== 0) {
             if (diff > 0) {
                 spendMana(diff);
             } else {
-                // вернуть излишек, не превышая maxMana
                 state.mana = Math.min(state.maxMana, state.mana - diff);
             }
-            pendingCastResult.manaSpent = realCost;   // покажем в уведомлении реальный расход
-            pendingCastResult.manaAdjusted = true;    // пометка, что бот скорректировал
+            pendingCastResult.manaSpent = realCost;
+            pendingCastResult.manaAdjusted = true;
             console.log(`[NW] Корректировка маны: шаблон=${templateCost}, реально=${realCost}, дельта=${diff}`);
+        } else if (!sane) {
+            console.log(`[NW] Значение mana=${realCost} от ИИ проигнорировано (вне разумных границ)`);
         }
     }
 
@@ -423,11 +428,20 @@ function processManaRegen(aiMessageText, msg, messageId) {
         if (diffMinutes > 0) hoursFromDate = diffMinutes / 60;
     }
 
-
     const hours = Math.max(hoursFromTag, hoursFromDate);
     console.log(`[NW] Часы: тег=${hoursFromTag}, дата=${hoursFromDate.toFixed(1)}, применено=${hours.toFixed(1)}`);
+
+    // ВАЖНО: не восстанавливаем ману в тот же ход, когда заклинание
+    // было успешно наложено — иначе регенерация компенсирует расход,
+    // и кажется, что мана не тратится. Время для длительности эффектов
+    // при этом всё равно идёт.
     if (hours > 0) {
-        regenMana(hours);
+        const castThisTurn = !!(pendingCastResult && pendingCastResult.success);
+        if (!castThisTurn) {
+            regenMana(hours);
+        } else {
+            console.log('[NW] Регенерация пропущена: в этот ход был успешный каст');
+        }
         tickEffects(hours * 60);
     }
 
@@ -435,6 +449,7 @@ function processManaRegen(aiMessageText, msg, messageId) {
 
     console.log(`[NW] Мана: ${manaBefore} → ${state.mana} (cond=${state.condition}, body=${state.bodyState}, эффектов=${state.activeEffects.length})`);
 }
+
 
 
 
