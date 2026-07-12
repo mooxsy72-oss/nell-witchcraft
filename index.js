@@ -392,41 +392,59 @@ function processManaRegen(aiMessageText, msg, messageId) {
         state.bodyState = tag.body;
     }
 
-    // ── Вариативный расход маны (mana=X — итоговый полный расход) ──
-    // Применяем ТОЛЬКО если в этот ход был реальный каст.
-    // Защита: игнорируем явно неадекватные значения mana от ИИ
-    // (0 или больше тройной стоимости), чтобы случайное число
-    // не «вернуло» и не «съело» ману сверх меры.
     if (tag?.mana != null && pendingCastResult) {
         const templateCost = pendingCastResult.spellCost ?? pendingCastResult.manaSpent;
-        const realCost = tag.mana;
-        const sane = realCost > 0 && realCost <= templateCost * 3;
-        const diff = realCost - templateCost;
-        if (sane && diff !== 0) {
-            if (diff > 0) {
-                spendMana(diff);
-            } else {
-                state.mana = Math.min(state.maxMana, state.mana - diff);
+
+        // Коридор допустимой коррекции: сюжет может слегка удорожить или
+        // удешевить каст, но не радикально. Раньше нижней границы не было —
+        // ИИ мог прислать mana=5 для заклинания за 40 и «вернуть» игроку
+        // 35 маны (частая путаница модели: стоимость vs. остаток маны).
+        // Теперь зажимаем: не ниже половины и не выше двойной базовой цены.
+        const minCost = Math.max(1, Math.floor(templateCost * 0.5));
+        const maxCost = Math.ceil(templateCost * 2);
+
+        const rawCost = tag.mana;
+        const sane = rawCost >= minCost && rawCost <= maxCost;
+
+        if (sane) {
+            const realCost = rawCost;
+            const diff = realCost - templateCost;
+            if (diff !== 0) {
+                if (diff > 0) {
+                    // Каст обошёлся дороже — досписываем разницу.
+                    spendMana(diff);
+                } else {
+                    // Каст обошёлся дешевле — возвращаем разницу, но не выше потолка.
+                    state.mana = Math.min(state.maxMana, state.mana - diff);
+                }
+                pendingCastResult.manaSpent = realCost;
+                pendingCastResult.manaAdjusted = true;
+                console.log(`[NW] Корректировка маны: шаблон=${templateCost}, реально=${realCost}, дельта=${diff}`);
             }
-            pendingCastResult.manaSpent = realCost;
-            pendingCastResult.manaAdjusted = true;
-            console.log(`[NW] Корректировка маны: шаблон=${templateCost}, реально=${realCost}, дельта=${diff}`);
-        } else if (!sane) {
-            console.log(`[NW] Значение mana=${realCost} от ИИ проигнорировано (вне разумных границ)`);
+        } else {
+            console.log(`[NW] Значение mana=${rawCost} от ИИ проигнорировано (вне коридора ${minCost}–${maxCost})`);
         }
     }
+
 
     const manaBefore = state.mana;
 
     let hoursFromTag = (tag?.tp != null) ? tag.tp : 0;
 
     let hoursFromDate = 0;
-    // Приоритет времени Horae, затем RP_DATE, затем наш tp
+    // Реальное игровое время: сначала пробуем Horae (с часами), затем RP_DATE (полночь).
     const dateNow = parseHoraeTime(aiMessageText) || parseRpDate(aiMessageText);
-    if (dateNow && state.lastGameTime) {
+    if (dateNow && state.lastGameTime != null) {
         const diffMinutes = dateNow.totalMinutes - state.lastGameTime;
-        if (diffMinutes > 0) hoursFromDate = diffMinutes / 60;
+        if (diffMinutes > 0) {
+            hoursFromDate = diffMinutes / 60;
+        }
+        // diffMinutes <= 0 — время не сдвинулось или «откатилось» назад.
+        // Частый случай: в прошлый ход был Horae с часами (15:00), а в этот —
+        // только RP_DATE (полночь того же дня). Тогда реген берём из tp,
+        // а точку отсчёта НЕ трогаем (см. ниже).
     }
+
 
     const hours = Math.max(hoursFromTag, hoursFromDate);
     console.log(`[NW] Часы: тег=${hoursFromTag}, дата=${hoursFromDate.toFixed(1)}, применено=${hours.toFixed(1)}`);
@@ -445,7 +463,13 @@ function processManaRegen(aiMessageText, msg, messageId) {
         tickEffects(hours * 60);
     }
 
-    if (dateNow) state.lastGameTime = dateNow.totalMinutes;
+    // Двигаем игровое время только ВПЕРЁД, назад не откатываем — иначе смесь
+    // форматов Horae (с часами) и RP_DATE (полночь) постоянно сбрасывала бы
+    // точку отсчёта и глушила регенерацию на много ходов вперёд.
+    if (dateNow && (state.lastGameTime == null || dateNow.totalMinutes > state.lastGameTime)) {
+        state.lastGameTime = dateNow.totalMinutes;
+    }
+
 
     console.log(`[NW] Мана: ${manaBefore} → ${state.mana} (cond=${state.condition}, body=${state.bodyState}, эффектов=${state.activeEffects.length})`);
 }
@@ -724,9 +748,9 @@ let pendingCastInstruction = null;
 
 // ─── PROMPT INJECTION ─────────────────────────────────────────
 function buildSystemPrompt(failInstructions = []) {
-    const horaeOn = isHoraeActive();
     const bloodTier = getBloodTier(state.blood);
     const activeName = name1 || 'the witch';
+
 
     const allSpells = getAllSpells();
     const knownSpells = state.knownSpellIds
@@ -745,12 +769,17 @@ function buildSystemPrompt(failInstructions = []) {
         }).join('\n')
         : '(none)';
 
-    const tpField = horaeOn ? '' : 'tp=VALUE; ';
-    const tpMeaning = horaeOn ? '' :
+    // tp запрашиваем ВСЕГДА, даже при активном Horae. Он идёт запасным
+    // каналом: если игровая дата в этот ход не сдвинулась (статичная сцена),
+    // реген возьмётся из tp. При этом двойного счёта нет — ниже берётся
+    // Math.max(tp, разница_дат), а не сумма.
+    const tpField = 'tp=VALUE; ';
+    const tpMeaning =
         '  tp    = a NUMBER: in-world hours elapsed since the previous message (sleep/travel/skips included; a night = 8, a short scene = 0.5). ALWAYS include.\n';
-    const tpEx1 = horaeOn ? '' : '; tp=0.5';
-    const tpEx2 = horaeOn ? '' : '; tp=8';
-    const tpEx3 = horaeOn ? '' : '; tp=0.5';
+    const tpEx1 = '; tp=0.5';
+    const tpEx2 = '; tp=8';
+    const tpEx3 = '; tp=0.5';
+
 
     let prompt = `[${activeName}'S WITCH STATE — live context. Weave naturally, never quote numbers verbatim.]
 Level: ${state.level}/10 | Mana: ${state.mana}/${state.maxMana} | Witch Blood: ${state.blood}/100
@@ -897,9 +926,32 @@ function checkRomanceBlood(text) {
     }
 }
 
-// ─── EVENT HANDLERS ───────────────────────────────────────────
 let pendingFailInstructions = [];
 let pendingEffectExpirations = [];
+
+
+// Показывает уведомление об итоге каста (успех/провал) и очищает результат.
+// Вынесено отдельно, чтобы вызывать из нескольких мест без дублирования.
+function announcePendingCastResult() {
+    if (!pendingCastResult) return;
+    const r = pendingCastResult;
+    if (r.success) {
+        const extra = r.effectName ? ` · эффект: ${r.effectName}` : '';
+        const adj = r.manaAdjusted ? ' (расход изменён сюжетом)' : '';
+        showNotify(
+            `«${r.name}» — удалось! Потрачено ${r.manaSpent} маны${adj}${extra}`,
+            'success', 5500
+        );
+    } else {
+        const adj = r.manaAdjusted ? ' (расход изменён сюжетом)' : '';
+        showNotify(
+            `«${r.name}» — сорвалось! Сгорело ${r.manaSpent} маны${adj} · ${r.backlashName}${r.backlashMod ? ` (${r.backlashMod}% к кастам)` : ''}`,
+            'error', 6500
+        );
+    }
+    pendingCastResult = null;
+    pendingCastInstruction = null;
+}
 
 
 // GENERATION_STARTED — inject prompt before AI responds
@@ -911,6 +963,31 @@ function onGenerationStarted() {
 }
 
 
+// GENERATION_STOPPED — генерацию оборвали (кнопка «стоп», ошибка, таймаут).
+// MESSAGE_RECEIVED в этом случае не срабатывает, поэтому снимаем блокировку
+// вручную, иначе каст «залипнет»: перестанет тратиться мана, а старый
+// результат всплывёт ложным уведомлением на следующем ответе.
+function onGenerationStopped() {
+    if (!isEnabled()) return;
+
+    // Каст, который ещё не был разрешён (стоял в очереди) — просто отменяем.
+    queuedManualCast = null;
+
+    // Каст уже разрешён (мана списана), но ответ ИИ не пришёл —
+    // показываем итог, чтобы игрок видел, что произошло.
+    announcePendingCastResult();
+    flushSilentNotices();
+
+    silentMode = false;
+    castLocked = false;
+    pendingCastInstruction = null;
+    pendingFailInstructions = [];
+
+    renderEffects();
+    renderDetail();
+    saveState();
+}
+
 
 // MESSAGE_SENT — player message, detect cast attempts
 async function onMessageSent(messageId) {
@@ -919,7 +996,16 @@ async function onMessageSent(messageId) {
     const msg = chat[messageId];
     if (!msg || !msg.is_user) return;
 
+    // ── Подчистка «залипшего» состояния прошлого хода ──
+    // Если предыдущая генерация оборвалась и не почистилась через
+    // onGenerationStopped/onMessageReceived — разбираем остаток здесь,
+    // пока новый ход не начался поверх старой блокировки.
+    if (pendingCastResult) announcePendingCastResult();
+    flushSilentNotices();
+    if (!queuedManualCast) castLocked = false; // не трогаем каст, поставленный кнопкой в этот ход
+
     pendingFailInstructions = [];
+
 
     // Включаем тихий режим: все начисления считаются молча,
     // уведомления и обновление колбы покажутся ПОСЛЕ ответа бота.
@@ -977,25 +1063,8 @@ async function onMessageReceived(messageId) {
     pendingFailInstructions = [];
 
     // Сначала — исход каста (главное уведомление идёт первым)
-    if (pendingCastResult) {
-        const r = pendingCastResult;
-        if (r.success) {
-            const extra = r.effectName ? ` · эффект: ${r.effectName}` : '';
-            const adj = r.manaAdjusted ? ' (расход изменён сюжетом)' : '';
-            showNotify(
-                `«${r.name}» — удалось! Потрачено ${r.manaSpent} маны${adj}${extra}`,
-                'success', 5500
-            );
-        } else {
-            const adj = r.manaAdjusted ? ' (расход изменён сюжетом)' : '';
-            showNotify(
-                `«${r.name}» — сорвалось! Сгорело ${r.manaSpent} маны${adj} · ${r.backlashName}${r.backlashMod ? ` (${r.backlashMod}% к кастам)` : ''}`,
-                'error', 6500
-            );
-        }
-        pendingCastResult = null;
-        pendingCastInstruction = null;
-    }
+    announcePendingCastResult();
+
 
     // Теперь показываем накопленные «тихие» уведомления (опыт, уровень, кровь, эффекты)
     flushSilentNotices();
@@ -2229,6 +2298,7 @@ function init() {
     renderPanel();
 
     eventSource.on(event_types.GENERATION_STARTED, onGenerationStarted);
+    eventSource.on(event_types.GENERATION_STOPPED, onGenerationStopped);
     eventSource.on(event_types.MESSAGE_SENT, onMessageSent);
     eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
     eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
