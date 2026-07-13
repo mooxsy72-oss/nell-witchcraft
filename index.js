@@ -125,6 +125,7 @@ function defaultState() {
         maxMana: 80,
         knownSpellIds: getSpellsUpToLevel(1).map(s => s.id),
         lastGameTime: null,
+        lastProcessedMsgId: null, // номер последнего обработанного ответа ИИ (защита от свайпов)
         castHistory: [],
         quickSlots: [null, null, null, null, null],
         condition: 'calm',
@@ -132,9 +133,10 @@ function defaultState() {
         bloodTarget: 'men',  // на кого влияет ведьмовская кровь: 'men' | 'women' | 'all'
         activeEffects: [],   // [{id, sourceId, sourceType, nameRu, nameEn, type, modifier, remainingMinutes}]
         customSpells: [],    // [{id, name, nameEn, school, cost, level, ritual, use, useEn, limit, limitEn, iconData}]
-        version: 2,
+        version: 3,
     };
 }
+
 
 
 // ─── STATE ACCESS (per-chat, stored in chat_metadata) ─────────
@@ -171,8 +173,16 @@ function loadState() {
     for (const k of Object.keys(def)) {
         if (state[k] === undefined) state[k] = def[k];
     }
+    // Миграция v2 → v3: единицы игрового времени сменились (календарная
+    // арифметика вместо приближённой). Старый lastGameTime несовместим —
+    // сбрасываем; точка отсчёта восстановится из первого ответа ИИ.
+    if (state.version < 3) {
+        state.lastGameTime = null;
+        state.version = 3;
+    }
     recalcDerived();
 }
+
 
 function saveState({ silentUI = false } = {}) {
     chat_metadata[META_KEY] = state;
@@ -286,6 +296,12 @@ function regenMana(hours) {
 const HORAE_TIME_RE = /time:\s*(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,2})\s+(\d{1,2}):(\d{2})/i;
 const HORAE_DATE_RE = /(?:date|time):\s*(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,2})/i;
 
+// Минуты по реальному календарю: границы месяцев и високосные годы
+// считаются честно. Date.UTC — чистая функция от цифр даты.
+function calendarMinutes(y, mo, d, h = 0, min = 0) {
+    return Date.UTC(y, mo - 1, d, h, min) / 60000;
+}
+
 function parseHoraeTime(text) {
     if (!text) return null;
     const mFull = text.match(HORAE_TIME_RE);
@@ -293,8 +309,7 @@ function parseHoraeTime(text) {
         return {
             y: +mFull[1], mo: +mFull[2], d: +mFull[3],
             h: +mFull[4], min: +mFull[5],
-            totalMinutes: (+mFull[1]) * 525960 + (+mFull[2]) * 43800
-                        + (+mFull[3]) * 1440 + (+mFull[4]) * 60 + (+mFull[5]),
+            totalMinutes: calendarMinutes(+mFull[1], +mFull[2], +mFull[3], +mFull[4], +mFull[5]),
         };
     }
     const mDate = text.match(HORAE_DATE_RE);
@@ -302,12 +317,12 @@ function parseHoraeTime(text) {
         return {
             y: +mDate[1], mo: +mDate[2], d: +mDate[3],
             h: 0, min: 0,
-            totalMinutes: (+mDate[1]) * 525960 + (+mDate[2]) * 43800
-                        + (+mDate[3]) * 1440,
+            totalMinutes: calendarMinutes(+mDate[1], +mDate[2], +mDate[3]),
         };
     }
     return null;
 }
+
 
 function findLastHoraeTime(scanDepth = 15) {
     const startIdx = Math.max(0, chat.length - scanDepth);
@@ -374,10 +389,12 @@ function parseRpDate(text) {
     if (!text) return null;
     const m = text.match(RP_DATE_RE);
     if (!m) return null;
+    // формат [RP_DATE: ДД.ММ.ГГГГ] — день.месяц.год
     return {
-        totalMinutes: (+m[3]) * 525960 + (+m[2]) * 43800 + (+m[1]) * 1440,
+        totalMinutes: calendarMinutes(+m[3], +m[2], +m[1]),
     };
 }
+
 
 function processManaRegen(aiMessageText, msg, messageId) {
     const tag = parseNwTag(aiMessageText);
@@ -480,11 +497,14 @@ function processManaRegen(aiMessageText, msg, messageId) {
 // ─── СИСТЕМА ЭФФЕКТОВ ────────────────────────────────────────
 function applyEffect(effect, silent = false) {
     if (!Array.isArray(state.activeEffects)) state.activeEffects = [];
+    // fresh: эффект наложен в текущем ходу — первый тик времени его не старит,
+    // иначе tp от ответа ИИ съедал бы короткие бафы в момент появления.
+    const withFlag = { ...effect, fresh: true };
     const existing = state.activeEffects.findIndex(e => e.sourceId === effect.sourceId);
     if (existing !== -1) {
-        state.activeEffects[existing] = { ...state.activeEffects[existing], ...effect };
+        state.activeEffects[existing] = { ...state.activeEffects[existing], ...withFlag };
     } else {
-        state.activeEffects.push(effect);
+        state.activeEffects.push(withFlag);
     }
     if (!silent) {
         const kind = effect.type === 'buff' ? 'Баф' : 'Дебаф';
@@ -527,9 +547,15 @@ function applyBacklash(spell, silent = true) {
 function tickEffects(minutes) {
     if (!Array.isArray(state.activeEffects) || !minutes) return;
     const expired = [];
-    state.activeEffects = state.activeEffects.map(e => ({
-        ...e, remainingMinutes: e.remainingMinutes - minutes,
-    })).filter(e => {
+    state.activeEffects = state.activeEffects.map(e => {
+        // Свежий эффект (наложен в этом ходу) не тратит длительность
+        // в этот же ход — только снимаем пометку. Стареть начнёт со следующего.
+        if (e.fresh) {
+            const { fresh, ...rest } = e;
+            return rest;
+        }
+        return { ...e, remainingMinutes: e.remainingMinutes - minutes };
+    }).filter(e => {
         if (e.remainingMinutes <= 0) { expired.push(e); return false; }
         return true;
     });
@@ -541,6 +567,7 @@ function tickEffects(minutes) {
     }
     if (expired.length) renderEffects();
 }
+
 
 
 function formatRemaining(min) {
@@ -964,9 +991,6 @@ function onGenerationStarted() {
 
 
 // GENERATION_STOPPED — генерацию оборвали (кнопка «стоп», ошибка, таймаут).
-// MESSAGE_RECEIVED в этом случае не срабатывает, поэтому снимаем блокировку
-// вручную, иначе каст «залипнет»: перестанет тратиться мана, а старый
-// результат всплывёт ложным уведомлением на следующем ответе.
 function onGenerationStopped() {
     if (!isEnabled()) return;
 
@@ -981,7 +1005,8 @@ function onGenerationStopped() {
     silentMode = false;
     castLocked = false;
     pendingCastInstruction = null;
-    pendingFailInstructions = [];
+    // pendingFailInstructions НЕ очищаем: если игрок перезапустит генерацию,
+    // инструкция об исходе каста должна снова попасть в промпт.
 
     renderEffects();
     renderDetail();
@@ -1057,10 +1082,23 @@ async function onMessageReceived(messageId) {
     const msg = chat[messageId];
     if (!msg || msg.is_user) return;
 
-    processManaRegen(msg.mes, msg, messageId);
-    checkHoraeEvents(msg.mes, parseNwTag(msg.mes));
-    checkRomanceBlood(msg.mes);
-    pendingFailInstructions = [];
+    // Защита от свайпов и регенераций: время, XP и кровь за этот ход
+    // начисляются только один раз — при первом ответе ИИ. Повторные
+    // генерации того же сообщения состояние не трогают.
+    const msgIdNum = Number(messageId);
+    if (state.lastProcessedMsgId !== msgIdNum) {
+        processManaRegen(msg.mes, msg, messageId);
+        checkHoraeEvents(msg.mes, parseNwTag(msg.mes));
+        checkRomanceBlood(msg.mes);
+        state.lastProcessedMsgId = msgIdNum;
+    } else {
+        console.log('[NW] Свайп/регенерация — начисления за этот ход уже сделаны, пропускаем');
+    }
+
+    // pendingFailInstructions здесь НЕ очищаем: при свайпе/регенерации
+    // GENERATION_STARTED сработает снова, и инструкция об исходе каста
+    // должна попасть в промпт повторно. Очистка происходит в onMessageSent,
+    // когда игрок отправляет следующее сообщение.
 
     // Сначала — исход каста (главное уведомление идёт первым)
     announcePendingCastResult();
@@ -1073,6 +1111,7 @@ async function onMessageReceived(messageId) {
     queuedManualCast = null;
     saveState(); // здесь колбу МОЖНО перерисовать — ответ бота уже пришёл
 }
+
 
 
 // CHAT_CHANGED — reload state for the new chat
