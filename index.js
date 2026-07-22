@@ -22,6 +22,38 @@ const MODULE = 'nellWitchcraft';
 const PROMPT_KEY = 'nell_witch_state';
 const META_KEY = 'nellWitchState';
 
+// ─── ТРАНСЛИТЕРАЦИЯ RU → EN (для автогенерации английских названий) ──
+const TRANSLIT_MAP = {
+    'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh',
+    'з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o',
+    'п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts',
+    'ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+};
+
+function transliterate(text) {
+    return text.split('').map(ch => {
+        const lower = ch.toLowerCase();
+        if (TRANSLIT_MAP[lower] !== undefined) {
+            const mapped = TRANSLIT_MAP[lower];
+            return ch === lower ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1);
+        }
+        return ch;
+    }).join('');
+}
+
+function autoNameEn(ruName) {
+    // Транслитерируем и капитализируем каждое слово
+    return transliterate(ruName)
+        .split(/\s+/)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+}
+
+function autoDescEn(ruText) {
+    // Простая транслитерация всего текста
+    return transliterate(ruText);
+}
+
 // ─── CUSTOM SPELLS HELPER ─────────────────────────────────────
 function getAllSpells() {
     const custom = (state && Array.isArray(state.customSpells)) ? state.customSpells : [];
@@ -409,14 +441,14 @@ function processManaRegen(aiMessageText, msg, messageId) {
         state.bodyState = tag.body;
     }
 
-    if (tag?.mana != null && pendingCastResult) {
+    // Корректировка стоимости каста тегом mana= — ТОЛЬКО для успешных кастов.
+    // При провале базой считается уже сгоревшая половина, и «шаблонное»
+    // значение от ИИ (полная стоимость) досписывало бы вторую половину.
+    if (tag?.mana != null && pendingCastResult && pendingCastResult.success) {
         const templateCost = pendingCastResult.spellCost ?? pendingCastResult.manaSpent;
 
-        // Коридор допустимой коррекции: сюжет может слегка удорожить или
-        // удешевить каст, но не радикально. Раньше нижней границы не было —
-        // ИИ мог прислать mana=5 для заклинания за 40 и «вернуть» игроку
-        // 35 маны (частая путаница модели: стоимость vs. остаток маны).
-        // Теперь зажимаем: не ниже половины и не выше двойной базовой цены.
+        // Коридор допустимой коррекции: не ниже половины и не выше
+        // двойной базовой цены.
         const minCost = Math.max(1, Math.floor(templateCost * 0.5));
         const maxCost = Math.ceil(templateCost * 2);
 
@@ -443,7 +475,6 @@ function processManaRegen(aiMessageText, msg, messageId) {
         }
     }
 
-
     const manaBefore = state.mana;
 
     let hoursFromTag = (tag?.tp != null) ? tag.tp : 0;
@@ -457,26 +488,18 @@ function processManaRegen(aiMessageText, msg, messageId) {
             hoursFromDate = diffMinutes / 60;
         }
         // diffMinutes <= 0 — время не сдвинулось или «откатилось» назад.
-        // Частый случай: в прошлый ход был Horae с часами (15:00), а в этот —
-        // только RP_DATE (полночь того же дня). Тогда реген берём из tp,
-        // а точку отсчёта НЕ трогаем (см. ниже).
+        // Тогда реген берём из tp, а точку отсчёта НЕ трогаем (см. ниже).
     }
-
 
     const hours = Math.max(hoursFromTag, hoursFromDate);
     console.log(`[NW] Часы: тег=${hoursFromTag}, дата=${hoursFromDate.toFixed(1)}, применено=${hours.toFixed(1)}`);
 
-    // ВАЖНО: не восстанавливаем ману в тот же ход, когда заклинание
-    // было успешно наложено — иначе регенерация компенсирует расход,
-    // и кажется, что мана не тратится. Время для длительности эффектов
-    // при этом всё равно идёт.
+    // ФИКС: регенерация теперь идёт ВСЕГДА, включая ход с успешным кастом.
+    // Старый пропуск («чтобы реген не компенсировал расход») выкидывал ВСЕ
+    // прошедшие часы: каст + ночной таймскип в одном ходу = потеря 16 маны
+    // регена. Расход за каст игрок и так видит в уведомлении об исходе.
     if (hours > 0) {
-        const castThisTurn = !!(pendingCastResult && pendingCastResult.success);
-        if (!castThisTurn) {
-            regenMana(hours);
-        } else {
-            console.log('[NW] Регенерация пропущена: в этот ход был успешный каст');
-        }
+        regenMana(hours);
         tickEffects(hours * 60);
     }
 
@@ -487,11 +510,8 @@ function processManaRegen(aiMessageText, msg, messageId) {
         state.lastGameTime = dateNow.totalMinutes;
     }
 
-
     console.log(`[NW] Мана: ${manaBefore} → ${state.mana} (cond=${state.condition}, body=${state.bodyState}, эффектов=${state.activeEffects.length})`);
 }
-
-
 
 
 // ─── СИСТЕМА ЭФФЕКТОВ ────────────────────────────────────────
@@ -513,20 +533,37 @@ function applyEffect(effect, silent = false) {
 }
 
 function applySpellSuccessEffect(spell, silent = false) {
+    // Сначала проверяем стандартные эффекты из SPELL_EFFECTS
     const eff = SPELL_EFFECTS[spell.id];
-    if (!eff) return;
-    applyEffect({
-        id: `spell_${spell.id}`,
-        sourceId: `spell_${spell.id}`,
-        sourceType: 'spell',
-        nameRu: eff.nameRu,
-        nameEn: eff.nameEn,
-        type: 'buff',
-        modifier: eff.modifier,
-        remainingMinutes: eff.durationMinutes,
-    }, silent);
-}
+    if (eff) {
+        applyEffect({
+            id: `spell_${spell.id}`,
+            sourceId: `spell_${spell.id}`,
+            sourceType: 'spell',
+            nameRu: eff.nameRu,
+            nameEn: eff.nameEn,
+            type: 'buff',
+            modifier: eff.modifier,
+            remainingMinutes: eff.durationMinutes,
+        }, silent);
+        return;
+    }
 
+    // Затем проверяем кастомные заклинания с effectData
+    if (spell.effectData) {
+        const ed = spell.effectData;
+        applyEffect({
+            id: `spell_${spell.id}`,
+            sourceId: `spell_${spell.id}`,
+            sourceType: 'spell',
+            nameRu: ed.nameRu,
+            nameEn: ed.nameEn,
+            type: ed.type,
+            modifier: ed.modifier,
+            remainingMinutes: ed.durationMinutes,
+        }, silent);
+    }
+}
 
 function applyBacklash(spell, silent = true) {
     const tier = getBacklashTier(spell.cost);
@@ -610,21 +647,51 @@ function extractCastAttempts(text) {
 function matchSpell(rawName) {
     const norm = (s) => s.toLowerCase()
         .replace(/[ёе]/g, 'е')
-        .replace(/[^а-яa-z0-9\s]/g, '');
+        .replace(/[^а-яa-z0-9\s]/g, '')
+        .trim();
 
     const target = norm(rawName);
+    if (target.length < 3) return null; // слишком короткое — не считаем
 
     const all = getAllSpells();
-    // Exact match first
+
+    // 1) Точное совпадение (высший приоритет)
     let found = all.find(s => norm(s.name) === target);
     if (found) return found;
 
-    // Partial match (target contained in spell name or vice versa)
-    found = all.find(s =>
-        norm(s.name).includes(target) || target.includes(norm(s.name))
-    );
-    return found || null;
+    // 2) Название заклинания НАЧИНАЕТСЯ с того, что ввёл игрок
+    //    (например «кровав» → «Кровавая метка»)
+    found = all.find(s => norm(s.name).startsWith(target));
+    if (found) return found;
+
+    // 3) То, что ввёл игрок, НАЧИНАЕТСЯ с названия заклинания
+    //    (например «тихий шаг на врага» → «Тихий шаг»)
+    found = all.find(s => target.startsWith(norm(s.name)));
+    if (found) return found;
+
+    // 4) Partial match — но только если совпадающая часть достаточно длинная
+    //    (минимум 5 символов или полное название заклинания)
+    const candidates = all.filter(s => {
+        const spellNorm = norm(s.name);
+        if (spellNorm.includes(target) && target.length >= 5) return true;
+        if (target.includes(spellNorm) && spellNorm.length >= 5) return true;
+        return false;
+    });
+
+    if (candidates.length === 1) return candidates[0];
+
+    // Если несколько кандидатов — выбираем того, чьё название ближе по длине
+    if (candidates.length > 1) {
+        candidates.sort((a, b) =>
+            Math.abs(norm(a.name).length - target.length) -
+            Math.abs(norm(b.name).length - target.length)
+        );
+        return candidates[0];
+    }
+
+    return null;
 }
+
 
 // ─── CAST VALIDATION & PROCESSING ────────────────────────────
 
@@ -746,7 +813,7 @@ function resolveCast(spell) {
             manaSpent: spell.cost,
             spellCost: spell.cost,          // шаблонная стоимость (для корректировки)
             spellId: spell.id,              // чтобы знать, чью ману корректировать
-            effectName: SPELL_EFFECTS[spell.id]?.nameRu || null,
+            effectName: SPELL_EFFECTS[spell.id]?.nameRu || spell.effectData?.nameRu || null,
         };
         return `${name1 || 'She'} casts "${spell.nameEn}" (${spell.school} school). The cast SUCCEEDS COMPLETELY — mechanics have already resolved this as a full, clean success. Do NOT describe the spell faltering, failing, weakening, backfiring, or partially working. Do NOT describe pallor, tremor, cold sweat, blood, or magical strain — those belong to failures only. Show the external, visible effect landing exactly as intended and how the world and targets react to it. A brief focused breath as she channels is fine; weakness is not. No dialogue or thoughts in her voice. USE: ${spell.useEn}`;
     } else {
@@ -982,11 +1049,16 @@ function announcePendingCastResult() {
 
 
 // GENERATION_STARTED — inject prompt before AI responds
-function onGenerationStarted() {
+// (нужен для свайпов/регенераций, когда MESSAGE_SENT не срабатывает)
+function onGenerationStarted(type, params, dryRun) {
     if (!isEnabled()) return;
+    // «Сухие» прогоны (подсчёт токенов и т.п.) не должны трогать состояние
+    if (dryRun) return;
     const merged = [...pendingFailInstructions, ...pendingEffectExpirations];
     injectPrompt(merged);
-    pendingEffectExpirations = [];
+    // ВАЖНО: pendingEffectExpirations здесь больше НЕ очищаем —
+    // иначе onMessageSent, срабатывающий позже, перезапишет промпт
+    // уже без них. Очистка перенесена в onMessageReceived.
 }
 
 
@@ -1022,57 +1094,56 @@ async function onMessageSent(messageId) {
     if (!msg || !msg.is_user) return;
 
     // ── Подчистка «залипшего» состояния прошлого хода ──
-    // Если предыдущая генерация оборвалась и не почистилась через
-    // onGenerationStopped/onMessageReceived — разбираем остаток здесь,
-    // пока новый ход не начался поверх старой блокировки.
     if (pendingCastResult) announcePendingCastResult();
     flushSilentNotices();
     if (!queuedManualCast) castLocked = false; // не трогаем каст, поставленный кнопкой в этот ход
 
     pendingFailInstructions = [];
 
-
-    // Включаем тихий режим: все начисления считаются молча,
-    // уведомления и обновление колбы покажутся ПОСЛЕ ответа бота.
+    // Тихий режим: начисления считаются молча,
+    // уведомления покажутся ПОСЛЕ ответа бота.
     silentMode = true;
 
     // 1) Приоритет: каст из панели (queuedManualCast)
     if (queuedManualCast) {
         const instr = resolveQueuedCast();
         if (instr) pendingFailInstructions.push(instr);
-        silentMode = false;
-        saveState({ silentUI: true });
-        return; // текстовые касты в этом же сообщении игнорируем
-    }
+    } else {
+        // 2) Текстовый каст — только ОДИН за сообщение
+        const attempts = extractCastAttempts(msg.mes);
+        for (const raw of attempts) {
+            const spell = matchSpell(raw);
+            if (!spell) continue;
 
-    // 2) Текстовый каст — только ОДИН за сообщение
-    const attempts = extractCastAttempts(msg.mes);
-    for (const raw of attempts) {
-        const spell = matchSpell(raw);
-        if (!spell) continue;
+            if (castLocked) {
+                showNotify('Только одно заклинание за ход — дождись ответа', 'warning');
+                break;
+            }
 
-        if (castLocked) {
-            showNotify('Только одно заклинание за ход — дождись ответа', 'warning');
-            break;
+            const check = validateAndCast(spell);
+            if (check.ok) {
+                castLocked = true;
+                const instr = resolveCast(spell);
+                pendingFailInstructions.push(instr);
+            } else {
+                addXp(XP_REWARDS.castFail(state.level));
+                pendingFailInstructions.push(check.promptInstruction);
+            }
+            break; // только первое совпадение
         }
-
-        const check = validateAndCast(spell);
-        if (check.ok) {
-            castLocked = true;
-            const instr = resolveCast(spell);
-            pendingFailInstructions.push(instr);
-        } else {
-            addXp(XP_REWARDS.castFail(state.level));
-            pendingFailInstructions.push(check.promptInstruction);
-        }
-        break; // только первое совпадение
     }
 
     silentMode = false;
+
+    // ── ГЛАВНЫЙ ФИКС ──
+    // MESSAGE_SENT срабатывает ПОСЛЕ GENERATION_STARTED, поэтому промпт,
+    // внедрённый там, ещё не содержит исход каста этого хода. Обновляем
+    // промпт повторно — теперь инструкция «успех/провал» гарантированно
+    // попадёт в ТЕКУЩИЙ ответ ИИ, а не в следующий.
+    injectPrompt([...pendingFailInstructions, ...pendingEffectExpirations]);
+
     saveState({ silentUI: true }); // сохранить, но НЕ перерисовывать колбу
 }
-
-
 
 
 // MESSAGE_RECEIVED — AI response came in, update time + regen + events
@@ -1082,9 +1153,13 @@ async function onMessageReceived(messageId) {
     const msg = chat[messageId];
     if (!msg || msg.is_user) return;
 
+    // Уведомления об истёкших эффектах прошлого хода уже доставлены
+    // в промпт этой генерации — очищаем ДО tickEffects, который может
+    // добавить новые (для следующего хода).
+    pendingEffectExpirations = [];
+
     // Защита от свайпов и регенераций: время, XP и кровь за этот ход
-    // начисляются только один раз — при первом ответе ИИ. Повторные
-    // генерации того же сообщения состояние не трогают.
+    // начисляются только один раз — при первом ответе ИИ.
     const msgIdNum = Number(messageId);
     if (state.lastProcessedMsgId !== msgIdNum) {
         processManaRegen(msg.mes, msg, messageId);
@@ -1097,14 +1172,12 @@ async function onMessageReceived(messageId) {
 
     // pendingFailInstructions здесь НЕ очищаем: при свайпе/регенерации
     // GENERATION_STARTED сработает снова, и инструкция об исходе каста
-    // должна попасть в промпт повторно. Очистка происходит в onMessageSent,
-    // когда игрок отправляет следующее сообщение.
+    // должна попасть в промпт повторно. Очистка происходит в onMessageSent.
 
     // Сначала — исход каста (главное уведомление идёт первым)
     announcePendingCastResult();
 
-
-    // Теперь показываем накопленные «тихие» уведомления (опыт, уровень, кровь, эффекты)
+    // Теперь — накопленные «тихие» уведомления (опыт, уровень, кровь, эффекты)
     flushSilentNotices();
 
     castLocked = false;
@@ -1113,18 +1186,22 @@ async function onMessageReceived(messageId) {
 }
 
 
-
 // CHAT_CHANGED — reload state for the new chat
 function onChatChanged() {
     queuedManualCast = null;
     castLocked = false;
     pendingCastResult = null;
     pendingCastInstruction = null;
+    // ФИКС: очищаем инструкции прошлого чата, иначе исход каста
+    // из чужого чата утёк бы в промпт нового.
+    pendingFailInstructions = [];
+    pendingEffectExpirations = [];
+    silentMode = false;
+    pendingSilentNotices = [];
     loadState();
     injectPrompt();
     renderPanel();
 }
-
 
 // Humanise spell id into English name for prompts: 'blood_mark' -> 'Blood Mark'
 function spellNameEn(spell) {
@@ -1518,7 +1595,6 @@ function setPanel(open) {
     }
 }
 
-// ─── CUSTOM SPELL FORM ────────────────────────────────────────
 function renderCustomSpellForm(container) {
     if (!state || state.level < 10) {
         container.innerHTML = '';
@@ -1549,7 +1625,11 @@ function renderCustomSpellForm(container) {
             <div class="nw-custom-limit">
                 <p style="font-size:0.74rem;color:var(--nw-accent);margin-bottom:8px;">Твои заклинания:</p>
                 <div class="nw-custom-list">
-                    ${existingCustom.map(s => `
+                    ${existingCustom.map(s => {
+                        const effInfo = s.effectData
+                            ? ` · ${s.effectData.type === 'buff' ? 'баф' : 'дебаф'}: ${s.effectData.nameRu} (${s.effectData.modifier > 0 ? '+' : ''}${s.effectData.modifier}%, ${s.effectData.durationMinutes}м)`
+                            : '';
+                        return `
                         <div class="nw-custom-item" style="--school:${SCHOOL_COLORS[s.school]}">
                             <div class="nw-custom-item-icon">
                                 ${s.iconData || s.iconPack
@@ -1557,12 +1637,12 @@ function renderCustomSpellForm(container) {
                                     : '✨'}
                             </div>
                             <div class="nw-custom-item-info">
-                                <b>${s.name}</b> · ${s.cost} маны · ${SCHOOLS[s.school]?.ru || s.school}
+                                <b>${s.name}</b> · ${s.cost} маны · ${SCHOOLS[s.school]?.ru || s.school}${effInfo}
                                 <div class="nw-custom-item-desc">${s.use}</div>
                             </div>
                             <button class="nw-custom-delete" data-id="${s.id}" title="Удалить">✕</button>
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             </div>
         ` : ''}
@@ -1570,29 +1650,16 @@ function renderCustomSpellForm(container) {
         ${canCreate ? `
             <form id="nw-custom-form" class="nw-custom-form">
                 <div class="nw-custom-row">
-                    <label>Название (RU) <span class="nw-req">*</span></label>
+                    <label>Название <span class="nw-req">*</span></label>
                     <input type="text" id="nw-custom-name" maxlength="40" placeholder="Кровавая лоза">
                 </div>
                 <div class="nw-custom-row">
-                    <label>Название (EN) <span class="nw-req">*</span></label>
-                    <input type="text" id="nw-custom-nameEn" maxlength="40" placeholder="Blood Vine">
-                    <small>Только латиница — это имя пойдёт в промпт для ИИ</small>
+                    <label>Что заклинание делает <span class="nw-req">*</span></label>
+                    <textarea id="nw-custom-use" rows="2" maxlength="200" placeholder="Описание действия заклинания..."></textarea>
                 </div>
                 <div class="nw-custom-row">
-                    <label>Описание использования (RU) <span class="nw-req">*</span></label>
-                    <textarea id="nw-custom-use" rows="2" maxlength="200" placeholder="Что заклинание делает..."></textarea>
-                </div>
-                <div class="nw-custom-row">
-                    <label>Описание использования (EN) <span class="nw-req">*</span></label>
-                    <textarea id="nw-custom-useEn" rows="2" maxlength="200" placeholder="What the spell does..."></textarea>
-                </div>
-                <div class="nw-custom-row">
-                    <label>Ограничения (RU) <span class="nw-req">*</span></label>
-                    <textarea id="nw-custom-limit" rows="2" maxlength="200" placeholder="Чего заклинание НЕ может..."></textarea>
-                </div>
-                <div class="nw-custom-row">
-                    <label>Ограничения (EN) <span class="nw-req">*</span></label>
-                    <textarea id="nw-custom-limitEn" rows="2" maxlength="200" placeholder="What the spell CANNOT do..."></textarea>
+                    <label>Чего заклинание НЕ может <span class="nw-req">*</span></label>
+                    <textarea id="nw-custom-limit" rows="2" maxlength="200" placeholder="Ограничения и пределы..."></textarea>
                 </div>
                 <div class="nw-custom-row" style="flex-direction:row;gap:16px;flex-wrap:wrap;">
                     <div style="display:flex;flex-direction:column;gap:4px;">
@@ -1602,6 +1669,7 @@ function renderCustomSpellForm(container) {
                             <option value="flesh">Плоть</option>
                             <option value="blood">Кровь</option>
                             <option value="mind">Разум</option>
+                            <option value="herbalism">Знахарство</option>
                         </select>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:4px;">
@@ -1609,6 +1677,40 @@ function renderCustomSpellForm(container) {
                         <input type="number" id="nw-custom-cost" min="10" max="150" value="40" style="width:80px;">
                     </div>
                 </div>
+
+                <div class="nw-custom-row nw-custom-effect-section">
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="nw-custom-has-effect">
+                        Заклинание даёт длящийся эффект (баф или дебаф)
+                    </label>
+                </div>
+
+                <div id="nw-custom-effect-fields" class="nw-custom-effect-fields nw-hidden">
+                    <div class="nw-custom-row">
+                        <label>Название эффекта <span class="nw-req">*</span></label>
+                        <input type="text" id="nw-custom-eff-name" maxlength="40" placeholder="Невидимая броня">
+                    </div>
+                    <div class="nw-custom-row" style="flex-direction:row;gap:16px;flex-wrap:wrap;">
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <label>Тип эффекта</label>
+                            <select id="nw-custom-eff-type">
+                                <option value="buff">Баф (положительный)</option>
+                                <option value="debuff">Дебаф (отрицательный)</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <label>Модификатор к кастам (%)</label>
+                            <input type="number" id="nw-custom-eff-mod" min="-30" max="30" value="0" style="width:80px;">
+                            <small>+ усиливает касты, − ослабляет</small>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <label>Длительность (минуты)</label>
+                            <input type="number" id="nw-custom-eff-dur" min="1" max="1440" value="30" style="width:90px;">
+                            <small>60 = 1 час, 1440 = сутки</small>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="nw-custom-row">
                     <label>Иконка — выбери из набора:</label>
                     <div class="nw-icon-grid" id="nw-icon-grid">${iconGrid}</div>
@@ -1638,6 +1740,13 @@ function renderCustomSpellForm(container) {
             renderSpells();
         });
 
+        // Чекбокс «есть эффект» — показать/скрыть поля
+        const chkEffect = document.getElementById('nw-custom-has-effect');
+        const effFields = document.getElementById('nw-custom-effect-fields');
+        chkEffect.addEventListener('change', () => {
+            effFields.classList.toggle('nw-hidden', !chkEffect.checked);
+        });
+
         // Сетка иконок — выбор кликом
         const grid = document.getElementById('nw-icon-grid');
         grid.addEventListener('click', (e) => {
@@ -1646,7 +1755,6 @@ function renderCustomSpellForm(container) {
             grid.querySelectorAll('.nw-icon-pick').forEach(el => el.classList.remove('nw-icon-selected'));
             pick.classList.add('nw-icon-selected');
             document.getElementById('nw-custom-icon-pick').value = pick.dataset.file;
-            // Если выбрал из пака — сбросить загрузку с компа
             document.getElementById('nw-custom-icon').value = '';
         });
     }
@@ -1667,33 +1775,55 @@ function handleCustomSpellSubmit(e) {
     e.preventDefault();
 
     const name = document.getElementById('nw-custom-name').value.trim();
-    const nameEn = document.getElementById('nw-custom-nameEn').value.trim();
     const school = document.getElementById('nw-custom-school').value;
     const cost = parseInt(document.getElementById('nw-custom-cost').value);
     const use = document.getElementById('nw-custom-use').value.trim();
-    const useEn = document.getElementById('nw-custom-useEn').value.trim();
     const limit = document.getElementById('nw-custom-limit').value.trim();
-    const limitEn = document.getElementById('nw-custom-limitEn').value.trim();
     const iconPackFile = document.getElementById('nw-custom-icon-pick').value;
     const iconFile = document.getElementById('nw-custom-icon').files[0];
 
-    // Валидация
-    if (!name || !nameEn || !use || !useEn || !limit || !limitEn) {
+    // Чекбокс эффекта
+    const hasEffect = document.getElementById('nw-custom-has-effect').checked;
+    let effectData = null;
+
+    if (hasEffect) {
+        const effName = document.getElementById('nw-custom-eff-name').value.trim();
+        const effType = document.getElementById('nw-custom-eff-type').value;
+        const effMod = parseInt(document.getElementById('nw-custom-eff-mod').value) || 0;
+        const effDur = parseInt(document.getElementById('nw-custom-eff-dur').value) || 30;
+
+        if (!effName) {
+            showNotify('Укажи название эффекта', 'warning');
+            return;
+        }
+        if (effDur < 1 || effDur > 1440) {
+            showNotify('Длительность эффекта — от 1 до 1440 минут', 'warning');
+            return;
+        }
+
+        effectData = {
+            nameRu: effName,
+            nameEn: autoNameEn(effName),
+            type: effType,
+            modifier: Math.max(-30, Math.min(30, effMod)),
+            durationMinutes: effDur,
+        };
+    }
+
+    // Валидация основных полей
+    if (!name || !use || !limit) {
         showNotify('Заполни все обязательные поля', 'warning');
-        return;
-    }
-    if (!/^[a-zA-Z0-9\s\-']+$/.test(nameEn)) {
-        showNotify('Название (EN) — только латиница, цифры, пробелы, дефис', 'warning');
-        return;
-    }
-    if (!/^[a-zA-Z0-9\s\-',.!?;:()]+$/.test(useEn) || !/^[a-zA-Z0-9\s\-',.!?;:()]+$/.test(limitEn)) {
-        showNotify('Описания (EN) — только латиница и базовая пунктуация', 'warning');
         return;
     }
     if (isNaN(cost) || cost < 10 || cost > 150) {
         showNotify('Стоимость маны — от 10 до 150', 'warning');
         return;
     }
+
+    // Автогенерация английских текстов
+    const nameEn = autoNameEn(name);
+    const useEn = autoDescEn(use);
+    const limitEn = autoDescEn(limit);
 
     const id = `custom_${Date.now()}`;
 
@@ -1710,17 +1840,18 @@ function handleCustomSpellSubmit(e) {
                 level: 10, ritual: false,
                 iconData: ev.target.result,
                 iconPack: null,
+                effectData,
             });
         };
         reader.onerror = () => showNotify('Ошибка чтения файла', 'error');
         reader.readAsDataURL(iconFile);
     } else {
-        // Иконка из пака или ничего
         createCustomSpell({
             id, name, nameEn, school, cost, use, useEn, limit, limitEn,
             level: 10, ritual: false,
             iconData: null,
             iconPack: iconPackFile || null,
+            effectData,
         });
     }
 }
@@ -1816,11 +1947,13 @@ function renderSpells() {
     container.classList.remove('nw-levels-mode');
 
 
-    const list = getAllSpells().filter(s =>
-        (activeTab === 'all' || s.school === activeTab)
-        && (activeLevel === 'all' || s.level === activeLevel)
-    );
-
+const list = getAllSpells().filter(s =>
+    (activeTab === 'all' || s.school === activeTab)
+    && (activeLevel === 'all' || s.level === activeLevel)
+).sort((a, b) => {
+    if (a.level !== b.level) return a.level - b.level;
+    return a.name.localeCompare(b.name, 'ru');
+});
 
     container.innerHTML = list.map(spell => {
         const known = spell.level <= state.level;
