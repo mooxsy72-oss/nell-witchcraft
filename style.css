@@ -1155,15 +1155,6 @@
     opacity: 0;
     z-index: 3;
 }
-.nw-b1 { left: 32%; }
-.nw-b2 { left: 55%; width: 4px; height: 4px; animation-delay: 1.8s; animation-duration: 6s; }
-.nw-b3 { left: 70%; width: 5px; height: 5px; animation-delay: 3.2s; animation-duration: 5.5s; }
-@keyframes nw-bubble-rise {
-    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
-    15%  { opacity: 0.85; }
-    85%  { opacity: 0.6; }
-    100% { transform: translateY(-120px) scale(1.1); opacity: 0; }
-}
 
 .nw-b1 { left: 30%; }
 .nw-b2 { left: 55%; width: 4px; height: 4px; animation-delay: 1.6s; animation-duration: 5.5s; }
@@ -2965,6 +2956,39 @@
     box-shadow: 0 0 20px var(--nw-glow),
                 inset 0 0 20px rgba(255, 255, 255, 0.3) !important;
 }
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── СЕКЦИЯ ЭФФЕКТОВ В ФОРМЕ КАСТОМНЫХ ЗАКЛИНАНИЙ ──────────── */
+/* ═══════════════════════════════════════════════════════════ */
+.nw-custom-effect-section {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(108, 52, 131, 0.3);
+}
+.nw-custom-effect-section label {
+    font-size: 0.78rem !important;
+    cursor: pointer;
+}
+.nw-custom-effect-section input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--nw-accent);
+    cursor: pointer;
+}
+.nw-custom-effect-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    margin-top: 4px;
+    background: color-mix(in srgb, var(--nw-accent) 6%, var(--nw-bg));
+    border: 1px solid color-mix(in srgb, var(--nw-accent) 25%, var(--nw-border));
+    border-radius: 8px;
+    animation: nw-open-fade 0.25s ease-out;
+}
+.nw-custom-effect-fields.nw-hidden {
+    display: none !important;
+}
+
 /* ═══════════════════════════════════════════════════════════ */
 /* ─── ФИКС МЕНЮ НАСТРОЕК: ОБРЕЗАННЫЕ SELECT ────────────────── */
 /* ═══════════════════════════════════════════════════════════ */
