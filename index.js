@@ -81,7 +81,7 @@ function showNotify(text, type = 'info', duration = 4000) {
     el.className = `nw-notify nw-notify-${type}`;
     el.innerHTML = `
         <span class="nw-notify-ico">${NW_NOTIFY_ICONS[type] || '✦'}</span>
-        <span class="nw-notify-text">${text}</span>`;
+        <span class="nw-notify-text">${esc(text)}</span>`;
     container.appendChild(el);
     requestAnimationFrame(() => el.classList.add('nw-notify-show'));
     const t = setTimeout(() => {
@@ -1249,6 +1249,11 @@ const SPELL_ICON_BASE = new URL('./icons/spells/', import.meta.url).href;
 const CUSTOM_ICON_BASE = new URL('./icons/custom/', import.meta.url).href;
 const CUSTOM_ICON_PACK = Array.from({length: 50}, (_, i) => `${i + 1}.png`);
 
+/** Текст для вставки в HTML: < > & " ' становятся безопасными значками, а не командами браузеру */
+function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function spellIconUrl(spell) {
     // Кастомное заклинание с загруженной иконкой (data-URL)
     if (spell.id.startsWith('custom_') && spell.iconData) {
@@ -1627,20 +1632,20 @@ function renderCustomSpellForm(container) {
                 <div class="nw-custom-list">
                     ${existingCustom.map(s => {
                         const effInfo = s.effectData
-                            ? ` · ${s.effectData.type === 'buff' ? 'баф' : 'дебаф'}: ${s.effectData.nameRu} (${s.effectData.modifier > 0 ? '+' : ''}${s.effectData.modifier}%, ${s.effectData.durationMinutes}м)`
+                            ? ` · ${s.effectData.type === 'buff' ? 'баф' : 'дебаф'}: ${esc(s.effectData.nameRu)} (${s.effectData.modifier > 0 ? '+' : ''}${esc(s.effectData.modifier)}%, ${esc(s.effectData.durationMinutes)}м)`
                             : '';
                         return `
                         <div class="nw-custom-item" style="--school:${SCHOOL_COLORS[s.school]}">
                             <div class="nw-custom-item-icon">
                                 ${s.iconData || s.iconPack
-                                    ? `<img src="${spellIconUrl(s)}" alt="">`
+                                    ? `<img src="${esc(spellIconUrl(s))}" alt="">`
                                     : '✨'}
                             </div>
                             <div class="nw-custom-item-info">
-                                <b>${s.name}</b> · ${s.cost} маны · ${SCHOOLS[s.school]?.ru || s.school}${effInfo}
-                                <div class="nw-custom-item-desc">${s.use}</div>
+                                <b>${esc(s.name)}</b> · ${esc(s.cost)} маны · ${esc(SCHOOLS[s.school]?.ru || s.school)}${effInfo}
+                                <div class="nw-custom-item-desc">${esc(s.use)}</div>
                             </div>
-                            <button class="nw-custom-delete" data-id="${s.id}" title="Удалить">✕</button>
+                            <button class="nw-custom-delete" data-id="${esc(s.id)}" title="Удалить">✕</button>
                         </div>`;
                     }).join('')}
                 </div>
@@ -1965,15 +1970,15 @@ const list = getAllSpells().filter(s =>
         ].join(' ');
 
         return `
-        <div class="nw-spell-cell ${cls}" data-spell="${spell.id}"
-             style="--school:${color}" title="${spell.name} — ${spell.cost} маны">
+        <div class="nw-spell-cell ${cls}" data-spell="${esc(spell.id)}"
+             style="--school:${color}" title="${esc(spell.name)} — ${esc(spell.cost)} маны">
             <div class="nw-cell-frame">
-                <img src="${spellIconUrl(spell)}" class="nw-cell-icon" alt="" draggable="false"
+                <img src="${esc(spellIconUrl(spell))}" class="nw-cell-icon" alt="" draggable="false"
                      onerror="this.classList.add('nw-icon-missing')">
                 ${known ? '' : '<span class="nw-cell-lock">🔒</span>'}
-                <span class="nw-cell-cost">${spell.cost}</span>
+                <span class="nw-cell-cost">${esc(spell.cost)}</span>
             </div>
-            <div class="nw-cell-name">${spell.name}</div>
+            <div class="nw-cell-name">${esc(spell.name)}</div>
         </div>`;
     }).join('');
 
@@ -2003,7 +2008,7 @@ function renderLevelsTab(container) {
         const cls = reached ? 'nw-lvl-done' : (isNext ? 'nw-lvl-next' : 'nw-lvl-locked');
 
         const spellsLine = spells.length > 0
-            ? `<div class="nw-lvl-spells">${spells.map(s => s.name).join(' · ')}</div>`
+            ? `<div class="nw-lvl-spells">${spells.map(s => esc(s.name)).join(' · ')}</div>`
             : (ld.level > 10
                 ? `<div class="nw-lvl-spells">+${ld.level - 9} слот${ld.level - 9 > 1 ? (ld.level - 9 < 5 ? 'а' : 'ов') : ''} для кастомных заклинаний</div>`
                 : '');
@@ -2088,7 +2093,7 @@ function renderPathTab(container) {
             <div class="nw-path-moon">🌙</div>
             <div class="nw-path-hero-title">Путь Ведьмы</div>
             <div class="nw-path-hero-sub">За пределами десятого круга магия больше не даёт готовых заклинаний —
-            только силу. Дальше ${name1 || 'ведьма'} творит свои.</div>
+            только силу. Дальше ${esc(name1 || 'ведьма')} творит свои.</div>
 
             <div class="nw-path-stats">
                 <div class="nw-path-stat">
@@ -2192,12 +2197,12 @@ function renderEffects() {
     let rows = `
         <div class="nw-effect-row nw-effect-neutral">
             <span class="nw-effect-ico">🌙</span>
-            <div><b>Тело: ${bodyLabel}</b>
+            <div><b>Тело: ${esc(bodyLabel)}</b>
             <div class="nw-effect-desc">Долгосрочное состояние — влияет на самочувствие и магию</div></div>
         </div>
         <div class="nw-effect-row nw-effect-neutral">
             <span class="nw-effect-ico">✧</span>
-            <div><b>Состояние: ${CONDITION_LABELS_RU[state.condition] || state.condition}</b>
+            <div><b>Состояние: ${esc(CONDITION_LABELS_RU[state.condition] || state.condition)}</b>
             <div class="nw-effect-desc">Краткосрочное — меняется от событий сцены</div></div>
         </div>`;
 
@@ -2205,11 +2210,11 @@ function renderEffects() {
         rows += state.activeEffects.map(e => {
             const cls = e.type === 'buff' ? 'nw-effect-buff' : 'nw-effect-debuff';
             const ico = e.type === 'buff' ? '✦' : '☠';
-            const modText = e.modifier ? ` (${e.modifier > 0 ? '+' : ''}${e.modifier}% к кастам)` : '';
+            const modText = e.modifier ? ` (${e.modifier > 0 ? '+' : ''}${esc(e.modifier)}% к кастам)` : '';
             return `
             <div class="nw-effect-row ${cls}">
                 <span class="nw-effect-ico">${ico}</span>
-                <div><b>${e.nameRu}</b>${modText}
+                <div><b>${esc(e.nameRu)}</b>${modText}
                 <div class="nw-effect-desc">Осталось: ${formatRemaining(e.remainingMinutes)}</div></div>
             </div>`;
         }).join('');
@@ -2221,7 +2226,7 @@ function renderEffects() {
             rows += `
             <div class="nw-effect-row nw-effect-reading">
                 <span class="nw-effect-ico">✨</span>
-                <div><b>Читается: «${spell.name}»</b>
+                <div><b>Читается: «${esc(spell.name)}»</b>
                 <div class="nw-effect-desc">Исход раскроется в следующем ответе</div>
                 <button id="nw-cancel-cast" class="nw-cancel-btn">Отменить</button></div>
             </div>`;
@@ -2250,11 +2255,11 @@ function renderQuickSlots() {
             </div>`;
         }
         const color = SCHOOL_COLORS[spell.school];
-        return `<div class="nw-quick-slot nw-quick-filled" data-slot="${i}" data-spell="${spell.id}"
-                     style="--school:${color}" title="${spell.name} (${spell.cost} маны)">
-            <img class="nw-quick-icon" src="${spellIconUrl(spell)}" alt=""
+        return `<div class="nw-quick-slot nw-quick-filled" data-slot="${i}" data-spell="${esc(spell.id)}"
+                     style="--school:${color}" title="${esc(spell.name)} (${esc(spell.cost)} маны)">
+            <img class="nw-quick-icon" src="${esc(spellIconUrl(spell))}" alt=""
                  onerror="this.classList.add('nw-icon-missing')">
-            <span class="nw-quick-cost">${spell.cost}</span>
+            <span class="nw-quick-cost">${esc(spell.cost)}</span>
             <span class="nw-quick-num">${i + 1}</span>
         </div>`;
     }).join('');
@@ -2289,18 +2294,18 @@ function renderDetail() {
         <button class="nw-detail-close" id="nw-detail-close" title="Закрыть">✕</button>
         <div class="nw-detail-top">
             <div class="nw-detail-iconbox" style="--school:${color}">
-                <img src="${spellIconUrl(spell)}" class="nw-detail-icon" alt="" draggable="false"
+                <img src="${esc(spellIconUrl(spell))}" class="nw-detail-icon" alt="" draggable="false"
                      onerror="this.classList.add('nw-icon-missing')">
             </div>
             <div class="nw-detail-info">
-                <div class="nw-detail-name" style="color:${color}">${spell.name}</div>
-                <div class="nw-detail-desc">${spell.use}</div>
-                <div class="nw-detail-limit">Предел: ${spell.limit}</div>
+                <div class="nw-detail-name" style="color:${color}">${esc(spell.name)}</div>
+                <div class="nw-detail-desc">${esc(spell.use)}</div>
+                <div class="nw-detail-limit">Предел: ${esc(spell.limit)}</div>
             </div>
         </div>
         <div class="nw-detail-params">
-            <div class="nw-param"><span class="nw-param-ico">✦</span> Расход маны: <b>${spell.cost}</b></div>
-            <div class="nw-param"><span class="nw-param-ico">★</span> Требуемый уровень: <b>${spell.level}</b></div>
+            <div class="nw-param"><span class="nw-param-ico">✦</span> Расход маны: <b>${esc(spell.cost)}</b></div>
+            <div class="nw-param"><span class="nw-param-ico">★</span> Требуемый уровень: <b>${esc(spell.level)}</b></div>
             <div class="nw-param ${risky ? 'nw-chance-risky' : ''}"><span class="nw-param-ico">☄</span> Шанс успеха: <b>${chance}%</b></div>
             ${spell.ritual ? '<div class="nw-param"><span class="nw-param-ico">⧗</span> Тип: <b>ритуал — требует времени и условий</b></div>' : ''}
         </div>
@@ -2422,11 +2427,11 @@ function renderSidebar() {
                 busy ? 'nw-sb-busy' : '',
             ].join(' ');
             return `
-            <button class="${cls}" data-spell="${spell.id}" style="--school:${color}"
-                    title="${spell.name} · ${spell.cost} маны (клик — скастовать)">
-                <img class="nw-sb-icon" src="${spellIconUrl(spell)}" alt=""
+            <button class="${cls}" data-spell="${esc(spell.id)}" style="--school:${color}"
+                    title="${esc(spell.name)} · ${esc(spell.cost)} маны (клик — скастовать)">
+                <img class="nw-sb-icon" src="${esc(spellIconUrl(spell))}" alt=""
                      onerror="this.classList.add('nw-icon-missing')">
-                <span class="nw-sb-cost">${spell.cost}</span>
+                <span class="nw-sb-cost">${esc(spell.cost)}</span>
                 <span class="nw-sb-key">${i + 1}</span>
             </button>`;
         }).join('');
